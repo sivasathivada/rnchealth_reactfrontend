@@ -1,0 +1,194 @@
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.search-icon {
+  position: absolute;
+  left: 14px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.search-input { padding-left: 42px; }
+.filter-select { max-width: 200px; }
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  user-select: none;
+}
+.filter-toggle input { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
+
+/* Consultants grid */
+.consultants-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
+}
+
+/* Consultant card */
+.consultant-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: var(--transition);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.consultant-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow);
+}
+.featured-badge {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: linear-gradient(135deg, var(--warning), #d97706);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.consultant-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 20px 14px;
+  position: relative;
+}
+.consultant-avatar {
+  border: 2px solid var(--border-strong);
+  background: linear-gradient(135deg, rgba(79,142,247,0.2), rgba(79,142,247,0.05));
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.consultant-card-info { flex: 1; min-width: 0; }
+.consultant-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.consultant-speciality {
+  font-size: 0.8125rem;
+  color: var(--primary);
+  font-weight: 500;
+  margin-top: 2px;
+}
+.consultant-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.rating-text { font-size: 0.75rem; color: var(--text-muted); margin-left: 4px; }
+
+.online-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.online-dot.online  { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 2s infinite; }
+.online-dot.offline { background: var(--text-muted); }
+
+.consultant-card-body {
+  padding: 0 20px 16px;
+  flex: 1;
+}
+.consultant-bio {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.consultant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.consultant-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.consultant-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  padding: 24px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.modal-close:hover { color: #ef4444; }
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.full-width { width: 100%; }
+.mt-4 { margin-top: 20px; }

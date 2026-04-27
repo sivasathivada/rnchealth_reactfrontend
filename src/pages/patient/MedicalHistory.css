@@ -1,0 +1,312 @@
+.medical-history-container {
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.history-header h2 {
+  font-size: 2rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.history-header p {
+  color: var(--text-secondary);
+}
+
+.btn-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-add:hover {
+  background: var(--primary-dark);
+}
+
+.add-record-form {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgb(0 0 0 / 0.05);
+  margin-bottom: 2rem;
+  border-left: 4px solid var(--primary);
+}
+
+.add-record-form h3 {
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.mt-3 {
+  margin-top: 1.5rem;
+}
+
+/* Base form resets */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Dynamic list css imported from PatientProfile */
+.dynamic-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dynamic-input-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dynamic-input-row input {
+  flex-grow: 1;
+}
+
+.btn-add-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.btn-add-item:hover {
+  background: var(--border);
+}
+
+.dynamic-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dynamic-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f1f5f9; /* slate-100 */
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  color: #334155; /* slate-700 */
+}
+
+.dynamic-tag button {
+  background: transparent;
+  border: none;
+  color: #94a3b8; /* slate-400 */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.btn-save {
+  padding: 0.75rem 2rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-cancel-form {
+  padding: 0.75rem 1.5rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-cancel-form:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* Display Cards */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.history-card {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.05);
+  transition: transform 0.2s;
+}
+
+.history-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 0.1);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.condition {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.icon-record {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.type-diagnosis { color: #3b82f6; background: #eff6ff; }
+.type-procedure { color: #10b981; background: #ecfdf5; }
+.type-surgery { color: #ef4444; background: #fef2f2; }
+.type-hospitalization { color: #f59e0b; background: #fffbeb; }
+.type-test { color: #8b5cf6; background: #f5f3ff; }
+.type-vaccine { color: #14b8a6; background: #f0fdfa; }
+.type-other { color: #64748b; background: #f8fafc; }
+
+.condition h3 {
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+}
+
+.source-provider {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.date-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.card-body {
+  margin-left: 3.25rem; 
+}
+
+.description-text {
+  color: var(--text-secondary);
+  background: var(--background);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+.attachment-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.attach-tag {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+@media (max-width: 768px) {
+  .history-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .card-top {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .card-body {
+    margin-left: 0;
+  }
+}

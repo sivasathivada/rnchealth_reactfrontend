@@ -1,0 +1,213 @@
+/* ── Notification Container ── */
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 420px;
+  pointer-events: none;
+}
+
+.notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  animation: slideInRight 0.3s ease-out;
+  pointer-events: all;
+  border-left: 4px solid;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(420px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  to {
+    transform: translateX(420px);
+    opacity: 0;
+  }
+}
+
+/* ── Notification Types ── */
+.notification-info {
+  border-left-color: #2563eb;
+}
+
+.notification-info .notification-icon {
+  color: #2563eb;
+}
+
+.notification-success {
+  border-left-color: #10b981;
+}
+
+.notification-success .notification-icon {
+  color: #10b981;
+}
+
+.notification-warning {
+  border-left-color: #f59e0b;
+}
+
+.notification-warning .notification-icon {
+  color: #f59e0b;
+}
+
+.notification-error {
+  border-left-color: #ef4444;
+}
+
+.notification-error .notification-icon {
+  color: #ef4444;
+}
+
+/* ── Special Notifications (Persistent) ── */
+.notification-call {
+  border-left-color: #8b5cf6;
+  background: linear-gradient(135deg, #f5f3ff 0%, #fff 100%);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+  animation: pulseIn 0.5s ease-out;
+}
+
+.notification-call .notification-icon {
+  color: #8b5cf6;
+  animation: ringBell 1s ease-in-out infinite;
+}
+
+.notification-message {
+  border-left-color: #06b6d4;
+}
+
+.notification-message .notification-icon {
+  color: #06b6d4;
+}
+
+.notification-appointment {
+  border-left-color: #ec4899;
+}
+
+.notification-appointment .notification-icon {
+  color: #ec4899;
+}
+
+.notification-task {
+  border-left-color: #14b8a6;
+}
+
+.notification-task .notification-icon {
+  color: #14b8a6;
+}
+
+/* ── Animation for Call Notifications ── */
+@keyframes ringBell {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes pulseIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ── Content ── */
+.notification-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.notification-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notification-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.notification-message {
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.notification-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.notification-close:hover {
+  color: #1f2937;
+}
+
+/* ── Mobile Responsive ── */
+@media (max-width: 640px) {
+  .notification-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .notification {
+    padding: 12px 14px;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100vw);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideOutRight {
+    to {
+      transform: translateX(100vw);
+      opacity: 0;
+    }
+  }
+}
