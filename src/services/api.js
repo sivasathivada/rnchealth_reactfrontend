@@ -50,13 +50,13 @@ export default api;
 
 // ── AUTH ──────────────────────────────────────────────
 export const authAPI = {
-  register: (data) => api.post('/auth/register/', data),
-  login: (data) => api.post('/auth/login/', data),
-  logout: (refresh_token) => api.post('/auth/logout/', { refresh_token }),
-  profile: () => api.get('/auth/profile/'),
-  validateToken: () => api.get('/auth/validate/'),
-  verifyEmail: (token) => api.post(`/auth/verify-email/${token}/`),
-  resendVerification: (email) => api.post('/auth/resend_verification/', { email }),
+  register: (data) => api.post('/api/auth/register/', data),
+  login: (data) => api.post('/api/auth/login/', data),
+  logout: (refresh_token) => api.post('/api/auth/logout/', { refresh_token }),
+  profile: () => api.get('/api/auth/profile/'),
+  validateToken: () => api.get('/api/auth/validate/'),
+  verifyEmail: (token) => api.post(`/api/auth/verify-email/${token}/`),
+  resendVerification: (email) => api.post('/api/auth/resend_verification/', { email }),
 };
 
 // ── CONSULTANTS ───────────────────────────────────────
