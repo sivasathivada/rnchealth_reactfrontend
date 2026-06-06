@@ -9,7 +9,7 @@ const api = axios.create({
   withCredentials: true, // 👈 ADD THIS LINE HERE
 });
 
-export default api;
+
 
 // Attach access token to every request
 api.interceptors.request.use(
