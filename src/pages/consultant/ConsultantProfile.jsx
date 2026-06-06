@@ -148,14 +148,31 @@ const ConsultantProfile = () => {
   const handleAvatarSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    // Validate file type on frontend
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5MB.');
+      return;
+    }
+
     try {
       const form = new FormData();
       form.append('avatar', file);
-      await consultantsAPI.updateAvatar(form);
+      const { data } = await consultantsAPI.updateAvatar(form);
+      // Immediately update avatar_url in state from the response
+      if (data.avatar_url) {
+        setProfile(prev => ({ ...prev, avatar_url: data.avatar_url }));
+      }
+      // Re-fetch full profile in the background to sync all data
       fetchProfile();
     } catch (err) {
       console.error('Avatar update failed', err);
-      alert('Failed to update avatar. Please ensure backend supports multipart properly.');
+      const errMsg = err.response?.data?.error || 'Failed to update avatar.';
+      alert(errMsg);
     }
   };
 

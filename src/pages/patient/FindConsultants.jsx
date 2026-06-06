@@ -65,8 +65,8 @@ export default function FindConsultants() {
     setLoadingSlots(true);
     try {
       const { data } = await appointmentsAPI.availableSlots(consultantId, date);
-      // Backend returns available_slots array — only active slots are included
-      const slots = data.available_slots || data.slots || (Array.isArray(data) ? data : []);
+      // Backend returns available_slots array — check data.results first for pagination support
+      const slots = data.results || data.available_slots || data.slots || (Array.isArray(data) ? data : []);
       setAvailableSlots(slots);
       if (slots.length === 0) {
         console.info('No active slots for this date. Consultant may need to activate slots in their Availability page.');
@@ -284,9 +284,14 @@ export default function FindConsultants() {
                        ) : availableSlots.length > 0 ? (
                          <select required value={bookingData.scheduled_time} onChange={e=>setBookingData({...bookingData, scheduled_time: e.target.value})}>
                             <option value="">-- Select a time --</option>
-                            {availableSlots.map((slot, idx) => (
-                              <option key={idx} value={slot}>{slot}</option>
-                            ))}
+                            {availableSlots.map((slot, idx) => {
+                               // slot may be a string (legacy) or an object {id, date, start_time, end_time}
+                               const timeVal = typeof slot === 'string' ? slot : slot.start_time;
+                               const displayTime = timeVal ? timeVal.substring(0, 5) : '';
+                               return (
+                                 <option key={idx} value={timeVal}>{displayTime}</option>
+                               );
+                            })}
                          </select>
                        ) : (
                          <>

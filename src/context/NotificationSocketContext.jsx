@@ -59,9 +59,48 @@ export const NotificationSocketProvider = ({ children }) => {
         toast.warning(`⚠️ Poor connection: ${payload.quality}`);
         break;
       case 'notification_message': {
+        // The backend wraps events as { type: 'notification_message', notification_type: '...', data: {...} }
+        // Re-dispatch as the inner type so WebRTCContext handlers fire correctly
         const notifType = eventData.notification_type;
-        if (notifType === 'incoming_call') {
-            toast.info(`📞 Incoming Call`);
+        if (notifType) {
+          const reshapedEvent = { ...eventData, ...((eventData.data) || {}), type: notifType };
+          // Call handlers registered for this specific notification_type
+          const typeHandlers = messageHandlers.current[notifType] || [];
+          typeHandlers.forEach(handler => {
+            try { handler(reshapedEvent); }
+            catch (err) { console.error(`[Socket] Handler error for "${notifType}":`, err); }
+          });
+
+          // Show toasts for call events
+          const payload = { ...eventData, ...((eventData.data) || {}) };
+          switch (notifType) {
+            case 'incoming_call':
+              toast.info(`📞 Incoming ${payload.call_type || 'video'} call from ${payload.caller_name || payload.patient_name || 'Consultant'}`);
+              break;
+            case 'call_ringing':
+              toast.info('📳 Calling consultant...');
+              break;
+            case 'call_accepted':
+              toast.success('✅ Call accepted! Connecting...');
+              break;
+            case 'call_declined':
+              toast.error('❌ Call declined.');
+              break;
+            case 'call_ended':
+              toast.info('📵 Call ended.');
+              break;
+            case 'appointment_update': {
+              const action = payload.action || 'updated';
+              toast.info(`📅 Appointment ${action}.`);
+              break;
+            }
+            case 'appointment_reminder': {
+              toast.warning(payload.message || `📅 Reminder: You have an upcoming video call in 10 minutes!`);
+              break;
+            }
+            default:
+              console.log('[Socket] notification_message sub-type:', notifType, payload);
+          }
         }
         break;
       }

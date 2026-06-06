@@ -1,9 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, User, Calendar, FileText, Users,
   Video, ClipboardList, Clock, LogOut, Activity,
-  Stethoscope, Star, ChevronRight, Wifi, WifiOff
+  Stethoscope, Star, ChevronRight, Wifi, WifiOff,
+  Sun, Moon
 } from 'lucide-react';
 import './Sidebar.css';
 
@@ -31,6 +33,7 @@ const adminNav = [
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const navItems = user?.role === 'admin' ? adminNav : user?.role === 'consultant' ? consultantNav : patientNav;
 
@@ -92,6 +95,10 @@ export default function Sidebar() {
               : <span className="badge badge-warning">Pending Verification</span>}
           </div>
         )}
+        <button className="sidebar-theme-toggle" onClick={toggleTheme}>
+          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          <span>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
+        </button>
         <button className="sidebar-logout" onClick={handleLogout}>
           <LogOut size={16} />
           <span>Sign Out</span>

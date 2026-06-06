@@ -9,8 +9,8 @@ import { CreditCard, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 // Replace 'Pk_test' with your actual publishable key
-const stripePromise = loadStripe('Stripe pk key here');
 
 const PaymentModalContent = ({ appointmentId, consultantId, scheduledDate, scheduledTime, amount, consultantName, onClose }) => {
   const stripe = useStripe();
@@ -64,18 +64,7 @@ const PaymentModalContent = ({ appointmentId, consultantId, scheduledDate, sched
           stripe_payment_intent_id: result.paymentIntent.id
         });
 
-        // 4. Initiate Call Session once payment is confirmed
-        try {
-          await callSessionsAPI.create({ 
-            appointment_id: appointmentId,
-            consultant_id: consultantId,
-            scheduled_date: scheduledDate,
-            scheduled_time: scheduledTime,
-            payment_id: paymentId
-          });
-        } catch (err) {
-          console.error('Failed to initiate call session:', err);
-        }
+
 
         setSuccess(true);
         setTimeout(() => {

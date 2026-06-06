@@ -327,3 +327,30 @@
     flex-direction: column;
   }
 }
+
+.avatar-wrapper {
+  position: relative;
+}
+
+.avatar-upload-btn {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: var(--primary);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid var(--bg-surface);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  transition: var(--transition);
+}
+
+.avatar-upload-btn:hover {
+  background: var(--primary-dark);
+  transform: scale(1.1);
+}

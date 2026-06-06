@@ -54,6 +54,27 @@ const MedicalHistory = () => {
     healthcare_provider: '',
     attachments: [] // List of reference links or document names
   });
+  const [uploading, setUploading] = useState(false);
+
+  const handleDocumentUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      const form = new FormData();
+      form.append('document', file);
+      const { data } = await patientsAPI.uploadDocument(form);
+      setFormData(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, data.file_url]
+      }));
+    } catch (err) {
+      console.error('Document upload failed', err);
+      alert('Failed to upload document. Max size is 10MB.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     fetchHistory();
@@ -169,12 +190,28 @@ const MedicalHistory = () => {
               </div>
 
               <div className="form-group full-width">
-                <label>Attachments (Link references or file names)</label>
-                <DynamicListInput 
-                    items={formData.attachments} 
-                    setItems={(arr) => setFormData({...formData, attachments: arr})} 
-                    placeholder="e.g. scan-result.pdf" 
-                />
+                <label>Attachments & Documents</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <input 
+                      type="file" 
+                      id="doc-upload" 
+                      onChange={handleDocumentUpload} 
+                      disabled={uploading}
+                      style={{ display: 'none' }}
+                    />
+                    <label htmlFor="doc-upload" className="btn-add-item" style={{ margin: 0, padding: '10px 15px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <PlusCircle size={16} /> {uploading ? 'Uploading...' : 'Upload File'}
+                    </label>
+                    {uploading && <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Uploading to server...</span>}
+                  </div>
+                  
+                  <DynamicListInput 
+                      items={formData.attachments} 
+                      setItems={(arr) => setFormData({...formData, attachments: arr})} 
+                      placeholder="Add reference link or filename, or click Upload File above" 
+                  />
+                </div>
               </div>
 
             </div>
@@ -210,9 +247,17 @@ const MedicalHistory = () => {
                 {record.attachments?.length > 0 && (
                    <div className="attachment-pills">
                      <Folder size={14} /> 
-                     {record.attachments.map((att, idx) => (
-                       <span key={idx} className="attach-tag">{att}</span>
-                     ))}
+                     {record.attachments.map((att, idx) => {
+                       const isUrl = att.startsWith('http') || att.includes('/media/');
+                       const displayName = att.substring(att.lastIndexOf('/') + 1);
+                       return isUrl ? (
+                         <a key={idx} href={att} target="_blank" rel="noopener noreferrer" className="attach-tag link-tag" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>
+                           {displayName}
+                         </a>
+                       ) : (
+                         <span key={idx} className="attach-tag">{att}</span>
+                       );
+                     })}
                    </div>
                 )}
               </div>

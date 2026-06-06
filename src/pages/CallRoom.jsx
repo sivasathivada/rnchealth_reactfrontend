@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWebRTCSocket } from '../context/WebRTCContext';
 import { useWebRTC } from '../hooks/useWebRTC';
@@ -12,23 +12,34 @@ const CallRoom = () => {
   const {
     localVideoRef,
     remoteVideoRef,
+    localStream,
     remoteStream,
     startLocalStream,
     toggleMedia,
     endCall,
-    callStatus
+    callStatus,
+    isPatient
   } = useWebRTC(sessionId);
 
   const [micEnabled, setMicEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [waitingTimeout, setWaitingTimeout] = useState(false);
 
+  // Guard: only initialise the room once per mount (prevents re-run when
+  // remoteStream, joinCallRoom, or startLocalStream references change).
+  const initializedRef = useRef(false);
+
   useEffect(() => {
     if (!isConnected) {
       console.warn('WebSocket not connected, waiting...');
       return;
     }
-    
+
+    // Already set up — do NOT run again (avoids the reconnect loop caused
+    // by remoteStream being a dependency in the old implementation).
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
     console.log('WS Connected, joining room and initiating local stream...');
     try {
       joinCallRoom(sessionId);
@@ -37,15 +48,34 @@ const CallRoom = () => {
       console.error('Failed to initialize call:', err);
       alert('Failed to initialize call room. Please check your internet connection.');
     }
-    
+  }, [isConnected, sessionId, joinCallRoom, startLocalStream]);
+
+  // Bind local stream to video element when stream is available
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  // Bind remote stream to video element when stream is available
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  // Separate effect: show "still waiting" message after 5 minutes with no connection.
+  // This is intentionally isolated from the setup effect so it never triggers a re-join.
+  useEffect(() => {
+    if (callStatus === 'connected') {
+      setWaitingTimeout(false);
+      return;
+    }
     const timer = setTimeout(() => {
-      if (!remoteStream) {
-        setWaitingTimeout(true);
-      }
+      setWaitingTimeout(true);
     }, 5 * 60 * 1000); // 5 minutes
-    
     return () => clearTimeout(timer);
-  }, [isConnected, sessionId, joinCallRoom, startLocalStream, remoteStream]);
+  }, [callStatus]);
 
   if (callStatus === 'disconnected') {
     return (
@@ -66,12 +96,18 @@ const CallRoom = () => {
              ref={remoteVideoRef} 
              autoPlay 
              playsInline 
-             className={`main-video ${!remoteStream ? 'hidden' : ''}`}
+             className={`main-video ${callStatus !== 'connected' ? 'hidden' : ''}`}
           />
-          {!remoteStream && (
+          {callStatus !== 'connected' && (
              <div className="waiting-overlay">
                <div className="loader-pulse"></div>
-               <p>{waitingTimeout ? "consumer is not joined yet wait ...." : "Waiting for consumer to join..."}</p>
+               <p>
+                 {isPatient 
+                   ? "Connecting to consultant..." 
+                   : (waitingTimeout 
+                       ? "The other participant has not joined yet. Please stay on the line..." 
+                       : "Waiting for the other participant to join...")}
+               </p>
              </div>
           )}
         </div>

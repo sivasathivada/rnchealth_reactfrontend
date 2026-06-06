@@ -1,5 +1,6 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotificationSocket } from './NotificationSocketContext';
 
 const WebRTCContext = createContext(null);
@@ -7,6 +8,8 @@ const WebRTCContext = createContext(null);
 export const WebRTCProvider = ({ children }) => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [activeCallSessionId, setActiveCallSessionId] = useState(null);
+  const [pendingCallSessionId, setPendingCallSessionId] = useState(null);
+  const pendingCallSessionIdRef = useRef(null);
 
   // WebRTC signaling state (forwarded from the server via WebSocket)
   const [pendingOffer, setPendingOffer]       = useState(null);
@@ -14,6 +17,12 @@ export const WebRTCProvider = ({ children }) => {
   const [pendingCandidates, setPendingCandidates] = useState([]);
 
   const { isConnected, sendCommand, registerHandler } = useNotificationSocket();
+  const navigate = useNavigate();
+
+  // Keep ref in sync
+  useEffect(() => {
+    pendingCallSessionIdRef.current = pendingCallSessionId;
+  }, [pendingCallSessionId]);
 
   // ── Register all call-related event handlers ──────────────────────────────
   useEffect(() => {
@@ -36,16 +45,22 @@ export const WebRTCProvider = ({ children }) => {
     // Call status events — consumer sends these types directly to client
     unsubs.push(registerHandler('call_accepted', (data) => {
       console.log('[WebRTC] Call accepted:', data);
+      const sessionId = data.session_id || pendingCallSessionIdRef.current;
+      if (sessionId) {
+        navigate(`/call/${sessionId}`);
+      }
     }));
     unsubs.push(registerHandler('call_declined', () => {
       console.log('[WebRTC] Call declined');
       setIncomingCall(null);
       setActiveCallSessionId(null);
+      setPendingCallSessionId(null);
     }));
     unsubs.push(registerHandler('call_ended', () => {
       console.log('[WebRTC] Call ended');
       setIncomingCall(null);
       setActiveCallSessionId(null);
+      setPendingCallSessionId(null);
       setPendingOffer(null);
       setPendingAnswer(null);
       setPendingCandidates([]);
@@ -75,7 +90,7 @@ export const WebRTCProvider = ({ children }) => {
     }));
 
     return () => unsubs.forEach(u => u());
-  }, [registerHandler]);
+  }, [registerHandler, navigate]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const joinCallRoom = useCallback((sessionId) => {
@@ -89,6 +104,7 @@ export const WebRTCProvider = ({ children }) => {
   }, [sendCommand]);
 
   const initiateCall = useCallback((sessionId, recipientId, callType = 'video') => {
+    setPendingCallSessionId(sessionId);
     sendCommand('initiate_call', {
       session_id: sessionId,
       recipient_id: recipientId,
@@ -109,6 +125,7 @@ export const WebRTCProvider = ({ children }) => {
   const endCall = useCallback((sessionId) => {
     sendCommand('end_call', { session_id: sessionId });
     setActiveCallSessionId(null);
+    setPendingCallSessionId(null);
     setPendingOffer(null);
     setPendingAnswer(null);
     setPendingCandidates([]);
@@ -132,6 +149,8 @@ export const WebRTCProvider = ({ children }) => {
     isConnected,
     incomingCall,
     activeCallSessionId,
+    pendingCallSessionId,
+    setPendingCallSessionId,
     pendingOffer,
     pendingAnswer,
     pendingCandidates,

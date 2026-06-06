@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { patientsAPI } from '../../services/api';
 import './PatientProfile.css';
-import { User, Mail, Calendar, Phone, MapPin, Activity, ShieldAlert, FileText, Globe, Plus, X } from 'lucide-react';
+import { User, Mail, Calendar, Phone, MapPin, Activity, ShieldAlert, FileText, Globe, Plus, X, Camera } from 'lucide-react';
 
 const DynamicListInput = ({ items, setItems, placeholder }) => {
   const [val, setVal] = useState('');
@@ -147,6 +147,37 @@ const PatientProfile = () => {
     }
   };
 
+  const handleAvatarSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type on frontend too
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5MB.');
+      return;
+    }
+
+    try {
+      const form = new FormData();
+      form.append('avatar', file);
+      const { data } = await patientsAPI.updateAvatar(form);
+      // Immediately update avatar_url in state from the response
+      if (data.avatar_url) {
+        setProfile(prev => ({ ...prev, avatar_url: data.avatar_url }));
+      }
+      // Re-fetch full profile in the background to sync all data
+      fetchProfile();
+    } catch (err) {
+      console.error('Avatar update failed', err);
+      const errMsg = err.response?.data?.error || 'Failed to update avatar.';
+      alert(errMsg);
+    }
+  };
+
   const handleCheckboxChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.checked });
   };
@@ -158,12 +189,18 @@ const PatientProfile = () => {
     <div className="patient-profile-container">
       <div className="profile-header">
         <div className="avatar-section">
-          <div className="avatar-circle">
-            {profile.avatar_url ? (
-               <img src={profile.avatar_url} alt="Avatar" />
-            ) : (
-               profile.user?.first_name?.charAt(0) || <User />
-            )}
+          <div className="avatar-wrapper">
+            <div className="avatar-circle">
+              {profile.avatar_url ? (
+                 <img src={profile.avatar_url} alt="Avatar" />
+              ) : (
+                 profile.user?.first_name?.charAt(0) || <User />
+              )}
+            </div>
+            <label className="avatar-upload-btn">
+              <Camera size={14} />
+              <input type="file" accept="image/*" onChange={handleAvatarSelect} hidden />
+            </label>
           </div>
           <div className="avatar-info">
             <h2>{profile.user?.first_name} {profile.user?.last_name}</h2>

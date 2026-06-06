@@ -1,10 +1,13 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationSocketProvider } from './context/NotificationSocketContext';
 import { ProtectedRoute, PublicRoute } from './components/ProtectedRoute';
 import { WebRTCProvider } from './context/WebRTCContext';
 import NotificationCenter from './components/NotificationCenter';
+import CallNotificationBar from './components/CallNotificationBar';
+import MessageNotificationBar from './components/MessageNotificationBar';
 
 import CallRoom from './pages/CallRoom';
 
@@ -31,12 +34,15 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 
 function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <NotificationProvider>
         <NotificationSocketProvider>
-          <WebRTCProvider>
-            <Router>
+          <Router>
+            <WebRTCProvider>
               <NotificationCenter />
+              <CallNotificationBar />
+              <MessageNotificationBar />
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<LandingPage />} />
@@ -79,11 +85,12 @@ function App() {
                   <Route path="dashboard" element={<AdminDashboard />} />
                 </Route>
               </Routes>
-            </Router>
-          </WebRTCProvider>
+            </WebRTCProvider>
+          </Router>
         </NotificationSocketProvider>
       </NotificationProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 

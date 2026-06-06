@@ -53,6 +53,46 @@
   --transition-slow: all 0.4s cubic-bezier(0.4,0,0.2,1);
 }
 
+[data-theme="light"] {
+  /* Light background */
+  --bg-base:       #f8fafc;
+  --bg-surface:    #ffffff;
+  --bg-card:       #ffffff;
+  --bg-hover:      #f1f5f9;
+  --bg-input:      #f8fafc;
+
+  /* Borders */
+  --border:        rgba(79,142,247,0.12);
+  --border-strong: rgba(79,142,247,0.25);
+
+  /* Text */
+  --text-primary:  #0f172a;
+  --text-secondary:#475569;
+  --text-muted:    #64748b;
+  --text-accent:   #2563eb;
+
+  /* Glass */
+  --glass-bg:      rgba(255,255,255,0.7);
+  --glass-border:  rgba(79,142,247,0.15);
+
+  /* Shadows */
+  --shadow-sm:     0 2px 8px rgba(0,0,0,0.05);
+  --shadow-md:     0 8px 24px rgba(0,0,0,0.08);
+  --shadow-glow:   0 0 40px rgba(37,99,235,0.1);
+  
+  /* Brand override for light mode */
+  --primary:       #2563eb;
+  --primary-dark:  #1d4ed8;
+  --primary-light: #60a5fa;
+  --primary-glow:  rgba(37,99,235,0.15);
+
+  --accent:        #059669;
+  --accent-dark:   #047857;
+  --warning:       #d97706;
+  --danger:        #dc2626;
+  --danger-dark:   #b91c1c;
+}
+
 /* ═══════════════════════════  BASE RESET  ════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
