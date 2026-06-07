@@ -431,8 +431,45 @@ tbody td:first-child { color: var(--text-primary); font-weight: 500; }
 
 /* ═══════════════════════════  RESPONSIVE  ══════════════════════════ */
 @media (max-width: 768px) {
-  .main-content { margin-left: 0; }
-  .page-container { padding: 16px; }
-  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
+  /* Sidebar is a drawer on mobile — remove its space from layout */
+  .main-content {
+    margin-left: 0;
+    /* Push content below the fixed mobile top header */
+    padding-top: 60px;
+    /* Push content above the fixed mobile bottom nav */
+    padding-bottom: 64px;
+  }
+
+  .page-container {
+    padding: 16px;
+    max-width: 100%;
+  }
+
+  /* Collapse multi-column grids to single column on mobile */
+  .grid-2,
+  .grid-3,
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Keep stats 2-col on mobile — compact but readable */
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Page header tweaks */
+  .page-header h1 {
+    font-size: 1.4rem;
+  }
+
+  /* Buttons should not overflow on small screens */
+  .btn {
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* Tables: allow horizontal scroll */
+  .table-wrapper {
+    -webkit-overflow-scrolling: touch;
+  }
 }

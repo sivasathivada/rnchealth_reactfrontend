@@ -5,47 +5,62 @@ import {
   LayoutDashboard, User, Calendar, FileText, Users,
   Video, ClipboardList, Clock, LogOut, Activity,
   Stethoscope, Star, ChevronRight, Wifi, WifiOff,
-  Sun, Moon
+  Sun, Moon, X
 } from 'lucide-react';
 import './Sidebar.css';
 
 const patientNav = [
-  { to: '/patient/dashboard',       icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/patient/profile',         icon: User,            label: 'My Profile' },
-  { to: '/patient/find-consultants',icon: Users,           label: 'Find Consultants' },
-  { to: '/patient/appointments',    icon: Calendar,        label: 'Appointments' },
-  { to: '/patient/calls',           icon: Video,           label: 'Call Sessions' },
-  { to: '/patient/medical-history', icon: FileText,        label: 'Medical History' },
+  { to: '/patient/dashboard',        icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/patient/profile',          icon: User,            label: 'My Profile' },
+  { to: '/patient/find-consultants', icon: Users,           label: 'Find Consultants' },
+  { to: '/patient/appointments',     icon: Calendar,        label: 'Appointments' },
+  { to: '/patient/calls',            icon: Video,           label: 'Call Sessions' },
+  { to: '/patient/medical-history',  icon: FileText,        label: 'Medical History' },
 ];
 
 const consultantNav = [
-  { to: '/consultant/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/consultant/profile',      icon: User,            label: 'My Profile' },
-  { to: '/consultant/appointments', icon: Calendar,        label: 'Appointments' },
-  { to: '/consultant/calls',        icon: Video,           label: 'Call Sessions' },
-  { to: '/consultant/prescriptions',icon: ClipboardList,   label: 'Prescriptions' },
-  { to: '/consultant/availability', icon: Clock,           label: 'Availability' },
+  { to: '/consultant/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/consultant/profile',       icon: User,            label: 'My Profile' },
+  { to: '/consultant/appointments',  icon: Calendar,        label: 'Appointments' },
+  { to: '/consultant/calls',         icon: Video,           label: 'Call Sessions' },
+  { to: '/consultant/prescriptions', icon: ClipboardList,   label: 'Prescriptions' },
+  { to: '/consultant/availability',  icon: Clock,           label: 'Availability' },
 ];
 
 const adminNav = [
-  { to: '/admin/dashboard',         icon: LayoutDashboard, label: 'Admin Dashboard' },
+  { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Admin Dashboard' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const navItems = user?.role === 'admin' ? adminNav : user?.role === 'consultant' ? consultantNav : patientNav;
+  const navItems =
+    user?.role === 'admin'      ? adminNav :
+    user?.role === 'consultant' ? consultantNav :
+                                  patientNav;
 
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const initials = user ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() : '?';
+  const initials = user
+    ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase()
+    : '?';
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'sidebar-open' : ''}`}>
+
+      {/* Mobile close button */}
+      <button
+        className="sidebar-close-btn"
+        onClick={onClose}
+        aria-label="Close navigation"
+      >
+        <X size={20} />
+      </button>
+
       {/* Logo */}
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
@@ -76,10 +91,19 @@ export default function Sidebar() {
       {/* Nav section */}
       <nav className="sidebar-nav">
         <p className="sidebar-nav-label">
-          {user?.role === 'admin' ? 'Admin Panel' : user?.role === 'consultant' ? 'Consultant Panel' : 'Patient Panel'}
+          {user?.role === 'admin'
+            ? 'Admin Panel'
+            : user?.role === 'consultant'
+            ? 'Consultant Panel'
+            : 'Patient Panel'}
         </p>
         {navItems.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+            onClick={onClose}
+          >
             <Icon size={18} />
             <span>{label}</span>
             <ChevronRight size={14} className="sidebar-link-arrow" />
