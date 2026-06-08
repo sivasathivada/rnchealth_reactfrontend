@@ -1,7 +1,29 @@
 import axios from 'axios';
 
-// Dynamically use Render in production or fallback to localhost
-export const BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+// 🌟 DYNAMIC URL: Automatically use production domain or localhost based on environment
+const getBaseUrl = () => {
+  // Check if environment variable is explicitly set (takes precedence)
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+
+  // Determine protocol: https:// for production HTTPS, http:// for local HTTP
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+
+  // Determine host: local fallback vs. production domain
+  let host;
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // Local development: use localhost:8000
+    host = 'localhost:8000';
+  } else {
+    // Production: use the actual domain (e.g., your-app.onrender.com)
+    host = window.location.host;
+  }
+
+  return `${protocol}//${host}`;
+};
+
+export const BASE_URL = getBaseUrl();
 
 const api = axios.create({
   baseURL: BASE_URL,

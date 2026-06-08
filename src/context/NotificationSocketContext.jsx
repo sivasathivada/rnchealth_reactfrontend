@@ -127,7 +127,25 @@ export const NotificationSocketProvider = ({ children }) => {
     const token = localStorage.getItem('access_token');
     if (!token || socketRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `ws://127.0.0.1:8000/ws/notifications/${user.id}/?token=${token}`;
+    // 🌟 DYNAMIC URL: Automatically use wss:// for production HTTPS, ws:// for local HTTP
+    const getWebSocketUrl = () => {
+      const isSecure = window.location.protocol === 'https:';
+      const wsProtocol = isSecure ? 'wss:' : 'ws:';
+      
+      let wsHost;
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // Local development
+        wsHost = 'localhost:8000';
+      } else {
+        // Production: use actual domain
+        wsHost = window.location.host;  // Automatically becomes: rnchealth.onrender.com
+      }
+      
+      return `${wsProtocol}//${wsHost}`;
+    };
+
+    const baseUrl = getWebSocketUrl();
+    const wsUrl = `${baseUrl}/ws/notifications/${user.id}/?token=${token}`;
     console.log('[Socket] Connecting →', wsUrl);
     
     const socket = new WebSocket(wsUrl);

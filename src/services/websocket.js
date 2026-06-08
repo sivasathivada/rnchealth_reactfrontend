@@ -1,11 +1,11 @@
 /**
  * WebSocket Service — Django Channels / Redis Real-Time Layer
  *
- * Connects to: ws://localhost:8000/ws/notifications/<user_id>/?token=<jwt>
+ * Dynamically connects to production or local WebSocket server based on environment
  *
  * Handles:
  *  - notification_message     → general notifications (appointments, prescriptions)
- *  - incoming_call_notification → consultant receives incoming call from patient
+ *  - incoming_call_notification → patient receives incoming call from consultant
  *  - call_ringing             → patient hears ringing confirmation
  *  - call_accepted_notification → both parties notified of acceptance
  *  - webrtc_offer_notification  → SDP offer forwarded
@@ -19,7 +19,31 @@
  *  - pong                     → keep-alive response
  */
 
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+// 🌟 DYNAMIC URL: Automatically use wss:// for production HTTPS, ws:// for local HTTP
+const getWebSocketBaseUrl = () => {
+  // Check if environment variable is explicitly set (takes precedence)
+  if (import.meta.env.VITE_WS_URL) {
+    return import.meta.env.VITE_WS_URL;
+  }
+
+  // Determine protocol: wss:// for secure HTTPS, ws:// for local HTTP
+  const isSecure = window.location.protocol === 'https:';
+  const wsProtocol = isSecure ? 'wss:' : 'ws:';
+
+  // Determine host: local fallback vs. production domain
+  let wsHost;
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    // Local development: always use localhost:8000
+    wsHost = 'localhost:8000';
+  } else {
+    // Production: use the actual domain (e.g., your-app.onrender.com)
+    wsHost = window.location.host;
+  }
+
+  return `${wsProtocol}//${wsHost}`;
+};
+
+const WS_BASE_URL = getWebSocketBaseUrl();
 const RECONNECT_DELAY_MS  = 3000;   // 3 s base back-off
 const MAX_RECONNECT_TRIES = 10;
 const PING_INTERVAL_MS    = 25000;  // 25 s keep-alive
