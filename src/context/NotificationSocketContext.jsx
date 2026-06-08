@@ -127,19 +127,20 @@ export const NotificationSocketProvider = ({ children }) => {
     const token = localStorage.getItem('access_token');
     if (!token || socketRef.current?.readyState === WebSocket.OPEN) return;
 
-    // 🌟 DYNAMIC URL: Automatically use wss:// for production HTTPS, ws:// for local HTTP
+    // 🌟 DYNAMIC URL: Connect to Django backend (not React frontend)
     const getWebSocketUrl = () => {
-      const isSecure = window.location.protocol === 'https:';
-      const wsProtocol = isSecure ? 'wss:' : 'ws:';
+      // Define backend domains explicitly
+      const LOCAL_BACKEND = '127.0.0.1:8000';
+      const PROD_BACKEND = 'rnchealth.onrender.com'; // 🌟 Django backend domain
+
+      // Check if running locally or in production
+      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
-      let wsHost;
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        // Local development
-        wsHost = 'localhost:8000';
-      } else {
-        // Production: use actual domain
-        wsHost = window.location.host;  // Automatically becomes: rnchealth.onrender.com
-      }
+      // Determine protocol: wss:// for secure HTTPS, ws:// for local HTTP
+      const wsProtocol = isLocal ? 'ws:' : 'wss:';
+      
+      // Use backend domain, NOT frontend domain
+      const wsHost = isLocal ? LOCAL_BACKEND : PROD_BACKEND;
       
       return `${wsProtocol}//${wsHost}`;
     };

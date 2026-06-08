@@ -19,26 +19,25 @@
  *  - pong                     → keep-alive response
  */
 
-// 🌟 DYNAMIC URL: Automatically use wss:// for production HTTPS, ws:// for local HTTP
+// 🌟 DYNAMIC URL: Connect to Django backend (not React frontend) with proper protocol
 const getWebSocketBaseUrl = () => {
   // Check if environment variable is explicitly set (takes precedence)
   if (import.meta.env.VITE_WS_URL) {
     return import.meta.env.VITE_WS_URL;
   }
 
-  // Determine protocol: wss:// for secure HTTPS, ws:// for local HTTP
-  const isSecure = window.location.protocol === 'https:';
-  const wsProtocol = isSecure ? 'wss:' : 'ws:';
+  // Define backend domains explicitly
+  const LOCAL_BACKEND = '127.0.0.1:8000';
+  const PROD_BACKEND = 'rnchealth.onrender.com'; // 🌟 Django backend domain
 
-  // Determine host: local fallback vs. production domain
-  let wsHost;
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // Local development: always use localhost:8000
-    wsHost = 'localhost:8000';
-  } else {
-    // Production: use the actual domain (e.g., your-app.onrender.com)
-    wsHost = window.location.host;
-  }
+  // Check if running locally or in production
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  // Determine protocol: wss:// for secure HTTPS, ws:// for local HTTP
+  const wsProtocol = isLocal ? 'ws:' : 'wss:';
+  
+  // Use backend domain, NOT frontend domain
+  const wsHost = isLocal ? LOCAL_BACKEND : PROD_BACKEND;
 
   return `${wsProtocol}//${wsHost}`;
 };

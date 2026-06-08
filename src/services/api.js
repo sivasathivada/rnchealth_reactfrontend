@@ -1,24 +1,24 @@
 import axios from 'axios';
 
-// 🌟 DYNAMIC URL: Automatically use production domain or localhost based on environment
+// 🌟 DYNAMIC URL: Connect to Django backend (not React frontend) with proper protocol
 const getBaseUrl = () => {
   // Check if environment variable is explicitly set (takes precedence)
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
 
-  // Determine protocol: https:// for production HTTPS, http:// for local HTTP
-  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+  // Define backend domains explicitly
+  const LOCAL_BACKEND = '127.0.0.1:8000';
+  const PROD_BACKEND = 'rnchealth.onrender.com'; // 🌟 Django backend domain
 
-  // Determine host: local fallback vs. production domain
-  let host;
-  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    // Local development: use localhost:8000
-    host = 'localhost:8000';
-  } else {
-    // Production: use the actual domain (e.g., your-app.onrender.com)
-    host = window.location.host;
-  }
+  // Check if running locally or in production
+  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  // Determine protocol: https:// for production HTTPS, http:// for local HTTP
+  const protocol = isLocal ? 'http:' : 'https:';
+  
+  // Use backend domain, NOT frontend domain
+  const host = isLocal ? LOCAL_BACKEND : PROD_BACKEND;
 
   return `${protocol}//${host}`;
 };
