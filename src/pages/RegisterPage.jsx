@@ -162,6 +162,26 @@ export default function RegisterPage() {
 
           <div className="divider-text">or</div>
 
+          <div className="google-role-selector">
+            <span className="google-role-selector-text">Register via Google as:</span>
+            <div className="google-role-buttons">
+              <button 
+                type="button" 
+                className={`google-role-btn ${form.role === 'patient' ? 'active' : ''}`}
+                onClick={() => setForm(p => ({ ...p, role: 'patient' }))}
+              >
+                <User size={16} /> Patient
+              </button>
+              <button 
+                type="button" 
+                className={`google-role-btn ${form.role === 'consultant' ? 'active' : ''}`}
+                onClick={() => setForm(p => ({ ...p, role: 'consultant' }))}
+              >
+                <Stethoscope size={16} /> Consultant
+              </button>
+            </div>
+          </div>
+
           <GoogleLoginButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
 
           <div className="auth-footer">
