@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleRole, setGoogleRole] = useState('patient');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,7 +36,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const user = await googleLogin({ token: credential, role: 'patient' });
+      const user = await googleLogin({ token: credential, role: googleRole });
       if (user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
@@ -110,6 +111,26 @@ export default function LoginPage() {
           </form>
 
           <div className="divider-text">or</div>
+
+          <div className="google-role-selector">
+            <span className="google-role-selector-text">Sign in/up via Google as:</span>
+            <div className="google-role-buttons">
+              <button 
+                type="button" 
+                className={`google-role-btn ${googleRole === 'patient' ? 'active' : ''}`}
+                onClick={() => setGoogleRole('patient')}
+              >
+                <User size={16} /> Patient
+              </button>
+              <button 
+                type="button" 
+                className={`google-role-btn ${googleRole === 'consultant' ? 'active' : ''}`}
+                onClick={() => setGoogleRole('consultant')}
+              >
+                <Stethoscope size={16} /> Consultant
+              </button>
+            </div>
+          </div>
 
           <GoogleLoginButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
 
