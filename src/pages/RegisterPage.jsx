@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Activity, User, Stethoscope, ArrowRight, Loader, CheckCircle } from 'lucide-react';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 import './Auth.css';
 
 const ROLES = [
@@ -10,7 +11,7 @@ const ROLES = [
 ];
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '',
@@ -42,6 +43,27 @@ export default function RegisterPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credential) => {
+    setError('');
+    setLoading(true);
+    try {
+      const user = await googleLogin({ token: credential, role: form.role });
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate(user.role === 'consultant' ? '/consultant/dashboard' : '/patient/dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google registration failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (errorMsg) => {
+    setError(errorMsg || 'Google registration failed.');
   };
 
   const update = (field) => (e) => setForm(p => ({ ...p, [field]: e.target.value }));
@@ -137,6 +159,10 @@ export default function RegisterPage() {
               {loading ? <><Loader size={18} className="spin" /> Creating account…</> : <>Create Account <ArrowRight size={18} /></>}
             </button>
           </form>
+
+          <div className="divider-text">or</div>
+
+          <GoogleLoginButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
 
           <div className="auth-footer">
             <p>Already have an account? <Link to="/login" className="auth-link">Sign in</Link></p>

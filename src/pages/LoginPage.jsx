@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Activity, User, Stethoscope, ArrowRight, Loader } from 'lucide-react';
+import GoogleLoginButton from '../components/GoogleLoginButton';
 import './Auth.css';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +29,27 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credential) => {
+    setError('');
+    setLoading(true);
+    try {
+      const user = await googleLogin({ token: credential, role: 'patient' });
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate(user.role === 'consultant' ? '/consultant/dashboard' : '/patient/dashboard');
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Google sign-in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = (errorMsg) => {
+    setError(errorMsg || 'Google sign-in failed.');
   };
 
   return (
@@ -88,6 +110,8 @@ export default function LoginPage() {
           </form>
 
           <div className="divider-text">or</div>
+
+          <GoogleLoginButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
 
           <div className="auth-footer">
             <p>Don't have an account? <Link to="/register" className="auth-link">Create account</Link></p>

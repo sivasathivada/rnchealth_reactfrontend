@@ -9,7 +9,7 @@ const getBaseUrl = () => {
 
   // Define backend domains explicitly
   const LOCAL_BACKEND = '127.0.0.1:8000';
-  const PROD_BACKEND = 'rnchealth.onrender.com'; // 🌟 Django backend domain
+  const PROD_BACKEND = 'rnchealth.onrender.com'; // Django backend domain
 
   // Check if running locally or in production
   const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -28,7 +28,7 @@ export const BASE_URL = getBaseUrl();
 const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true, // 👈 ADD THIS LINE HERE
+  withCredentials: true, // ADD THIS LINE HERE
 });
 
 
@@ -74,6 +74,7 @@ export default api;
 export const authAPI = {
   register: (data) => api.post('/api/auth/register/', data),
   login: (data) => api.post('/api/auth/login/', data),
+  googleLogin: (data) => api.post('/api/auth/google/', data),
   logout: (refresh_token) => api.post('/api/auth/logout/', { refresh_token }),
   profile: () => api.get('/api/auth/profile/'),
   validateToken: () => api.get('/api/auth/validate/'),
