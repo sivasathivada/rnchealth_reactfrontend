@@ -16,36 +16,35 @@ export const useWebRTC = (sessionId) => {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [callStatus, setCallStatus] = useState('connecting'); // connecting | connected | disconnected
-
+  
+  // Remote peer's track status synced via Data Channel
+  const [remoteVideoEnabled, setRemoteVideoEnabled] = useState(true);
+  const [remoteMicEnabled, setRemoteMicEnabled] = useState(true);
+  
   const peerConnection     = useRef(null);
   const localVideoRef      = useRef(null);
   const remoteVideoRef     = useRef(null);
   const localStreamRef     = useRef(null);
+  const dataChannelRef     = useRef(null);
 
   // ── Race-condition guards ─────────────────────────────────────────────────
-  // Offer/candidates that arrived before PeerConnection or remote-desc was ready
   const queuedOffer          = useRef(null);
   const queuedCandidates     = useRef([]);
-  // True once setRemoteDescription has been called — needed before addIceCandidate
   const remoteDescriptionSet = useRef(false);
-  // True if participant_joined arrived before startLocalStream finished
   const isRemoteUserJoined   = useRef(false);
-  // Prevents sending two offers simultaneously (e.g. if participant_joined fires twice)
   const isOfferInProgress    = useRef(false);
-  // Track whether the P2P connection is fully established
   const isConnectedRef       = useRef(false);
-  // Guard: prevent startLocalStream from running more than once
   const isStreamStarted      = useRef(false);
 
-  // Stable ref for sessionId so async callbacks never see a stale closure value
+  // Stable ref for sessionId
   const sessionIdRef = useRef(sessionId);
   useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
 
-  // ── Flush queued ICE candidates (call after setRemoteDescription) ─────────
+  // ── Flush queued ICE candidates ───────────────────────────────────────────
   const flushQueuedCandidates = useCallback(async () => {
     if (!peerConnection.current || queuedCandidates.current.length === 0) return;
     console.log(`[WebRTC] Flushing ${queuedCandidates.current.length} queued ICE candidates`);
-    const batch = queuedCandidates.current.splice(0);          // drain atomically
+    const batch = queuedCandidates.current.splice(0);
     for (const candidate of batch) {
       try {
         await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -55,11 +54,67 @@ export const useWebRTC = (sessionId) => {
     }
   }, []);
 
+  // ── Setup Data Channel Handlers ───────────────────────────────────────────
+  const setupDataChannel = useCallback((channel) => {
+    dataChannelRef.current = channel;
+    
+    channel.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[WebRTC] Received control message:', data);
+        if (data.type === 'video_toggle') {
+          setRemoteVideoEnabled(data.enabled);
+        } else if (data.type === 'audio_toggle') {
+          setRemoteMicEnabled(data.enabled);
+        }
+      } catch (err) {
+        console.error('[WebRTC] Error parsing control message:', err);
+      }
+    };
+
+    channel.onopen = () => {
+      console.log('[WebRTC] Data channel opened');
+      // Sync local stream track states to remote peer on open
+      if (localStreamRef.current && dataChannelRef.current?.readyState === 'open') {
+        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+        const audioTrack = localStreamRef.current.getAudioTracks()[0];
+        try {
+          dataChannelRef.current.send(JSON.stringify({
+            type: 'video_toggle',
+            enabled: videoTrack ? videoTrack.enabled : false
+          }));
+          dataChannelRef.current.send(JSON.stringify({
+            type: 'audio_toggle',
+            enabled: audioTrack ? audioTrack.enabled : true
+          }));
+        } catch (err) {
+          console.warn('[WebRTC] Error sending initial stream state:', err);
+        }
+      }
+    };
+
+    channel.onclose = () => {
+      console.log('[WebRTC] Data channel closed');
+    };
+  }, []);
+
   // ── Create PeerConnection ─────────────────────────────────────────────────
   const initPeerConnection = useCallback(() => {
     if (peerConnection.current) return;
 
     peerConnection.current = new RTCPeerConnection(ICE_SERVERS);
+
+    // Offerer creates the Data Channel (consultant is non-polite)
+    if (!isPolite) {
+      console.log('[WebRTC] Creating data channel...');
+      const dc = peerConnection.current.createDataChannel('control-channel');
+      setupDataChannel(dc);
+    }
+
+    peerConnection.current.ondatachannel = (event) => {
+      console.log('[WebRTC] Received remote data channel');
+      setupDataChannel(event.channel);
+    };
 
     peerConnection.current.onicecandidate = (event) => {
       if (event.candidate) {
@@ -98,11 +153,10 @@ export const useWebRTC = (sessionId) => {
     peerConnection.current.oniceconnectionstatechange = () => {
       console.log('[WebRTC] ICE state:', peerConnection.current?.iceConnectionState);
     };
-  }, [sendCommand]);
+  }, [sendCommand, isPolite, setupDataChannel]);
 
-  // ── Start local camera/mic, then process any queued signaling ─────────────
+  // ── Start local camera/mic ────────────────────────────────────────────────
   const startLocalStream = useCallback(async (isVideo = true) => {
-    // Guard: never start the stream more than once per session
     if (isStreamStarted.current) {
       console.log('[WebRTC] startLocalStream already called — skipping');
       return;
@@ -118,7 +172,7 @@ export const useWebRTC = (sessionId) => {
           stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         } catch (audioErr) {
           console.error('[WebRTC] Failed to get any media, proceeding with receive-only', audioErr);
-          stream = new MediaStream(); // empty stream
+          stream = new MediaStream();
         }
       }
 
@@ -129,7 +183,6 @@ export const useWebRTC = (sessionId) => {
       }
 
       isStreamStarted.current = true;
-
       initPeerConnection();
 
       stream.getTracks().forEach((track) => {
@@ -138,7 +191,6 @@ export const useWebRTC = (sessionId) => {
         }
       });
 
-      // ── Process offer that arrived before getUserMedia finished ────────────
       if (queuedOffer.current) {
         console.log('[WebRTC] Processing queued offer after stream ready...');
         const offerData = queuedOffer.current;
@@ -155,10 +207,9 @@ export const useWebRTC = (sessionId) => {
         console.log('[WebRTC] Answer sent (queued offer path)');
 
         await flushQueuedCandidates();
-        return; // don't fall through to the offer-creation branch
+        return;
       }
 
-      // ── Create offer if the other participant already joined ───────────────
       if (isRemoteUserJoined.current && !isOfferInProgress.current) {
         console.log('[WebRTC] Remote user joined before stream was ready — creating offer now');
         isRemoteUserJoined.current = false;
@@ -175,50 +226,58 @@ export const useWebRTC = (sessionId) => {
 
     } catch (err) {
       console.error('[WebRTC] Unexpected error in startLocalStream:', err);
-      isStreamStarted.current = false; // allow retry on error
+      isStreamStarted.current = false;
     }
   }, [initPeerConnection, sendCommand, flushQueuedCandidates]);
 
+  // ── Toggle camera or mic ──────────────────────────────────────────────────
   const toggleMedia = useCallback((type) => {
     if (!localStream) return;
+    let newEnabled = true;
     localStream.getTracks().forEach(track => {
-      if (track.kind === type) track.enabled = !track.enabled;
+      if (track.kind === type) {
+        track.enabled = !track.enabled;
+        newEnabled = track.enabled;
+      }
     });
+
+    // Notify remote peer via Data Channel
+    if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+      try {
+        dataChannelRef.current.send(JSON.stringify({
+          type: type === 'video' ? 'video_toggle' : 'audio_toggle',
+          enabled: newEnabled
+        }));
+      } catch (err) {
+        console.warn('[WebRTC] Failed to send toggle state via data channel:', err);
+      }
+    }
   }, [localStream]);
 
   // ── Register WebSocket signaling handlers ─────────────────────────────────
   useEffect(() => {
-
-    // Called when the OTHER peer joins the call room.
-    // The non-polite peer (consultant) creates the offer here.
-    // The polite peer (patient) receives an offer and answers it.
     const handleParticipantJoined = async (data) => {
       if (data.session_id !== sessionId) return;
       console.log('[WebRTC] participant_joined received, isPolite:', isPolite);
 
-      // If connection is already established, ignore duplicate events
       if (isConnectedRef.current) {
         console.log('[WebRTC] Already connected — ignoring duplicate participant_joined');
         return;
       }
 
-      // Only the non-polite peer (consultant) creates the offer
       if (isPolite) return;
 
       if (!peerConnection.current) {
-        // startLocalStream hasn't finished yet — defer offer creation
         console.log('[WebRTC] PC not ready yet, deferring offer creation');
         isRemoteUserJoined.current = true;
         return;
       }
 
-      // Guard: one offer at a time
       if (isOfferInProgress.current) {
         console.warn('[WebRTC] Offer already in progress — ignoring duplicate participant_joined');
         return;
       }
 
-      // Only create offer when signaling is stable
       if (peerConnection.current.signalingState !== 'stable') {
         console.warn('[WebRTC] Signaling not stable (%s) — skipping offer', peerConnection.current.signalingState);
         return;
@@ -237,7 +296,6 @@ export const useWebRTC = (sessionId) => {
       }
     };
 
-    // Incoming offer from the other peer
     const handleOffer = async (data) => {
       if (data.session_id !== sessionId) return;
       console.log('[WebRTC] Received webrtc_offer');
@@ -249,7 +307,6 @@ export const useWebRTC = (sessionId) => {
       }
 
       try {
-        // Offer-glare: resolve using polite/impolite peer role pattern
         const glare = peerConnection.current.signalingState !== 'stable';
         if (glare) {
           if (!isPolite) {
@@ -276,7 +333,6 @@ export const useWebRTC = (sessionId) => {
       }
     };
 
-    // Incoming answer from the other peer
     const handleAnswer = async (data) => {
       if (data.session_id !== sessionId || !peerConnection.current) return;
       try {
@@ -291,7 +347,6 @@ export const useWebRTC = (sessionId) => {
       }
     };
 
-    // Incoming ICE candidate
     const handleIceCandidate = async (data) => {
       if (data.session_id !== sessionId) return;
       if (!data.candidate) return;
@@ -335,6 +390,9 @@ export const useWebRTC = (sessionId) => {
       peerConnection.current.close();
       peerConnection.current = null;
     }
+    dataChannelRef.current       = null;
+    setRemoteVideoEnabled(true);
+    setRemoteMicEnabled(true);
     remoteDescriptionSet.current = false;
     queuedOffer.current          = null;
     queuedCandidates.current     = [];
@@ -358,5 +416,7 @@ export const useWebRTC = (sessionId) => {
     endCall,
     callStatus,
     isPatient: user?.role === 'patient',
+    remoteVideoEnabled,
+    remoteMicEnabled
   };
 };
