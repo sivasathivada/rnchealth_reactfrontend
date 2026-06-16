@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Activity, User, Stethoscope, ArrowRight, Loader } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Eye, EyeOff, Activity, User, Stethoscope, ArrowRight, Loader, Sun, Moon } from 'lucide-react';
 import GoogleLoginButton from '../components/GoogleLoginButton';
 import './Auth.css';
 
 export default function LoginPage() {
+  const { isDark, toggleTheme } = useTheme();
   const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -55,6 +57,9 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      <button onClick={toggleTheme} className="btn btn-outline auth-theme-toggle" aria-label="Toggle Theme" style={{ padding: '8px 12px' }}>
+        {isDark ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
       <div className="auth-glow auth-glow-1" />
       <div className="auth-glow auth-glow-2" />
 

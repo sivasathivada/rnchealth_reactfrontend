@@ -38,6 +38,10 @@ const CallRoom = () => {
 
   // Fetch session details on mount
   useEffect(() => {
+    if (!sessionId || sessionId === 'undefined') {
+      setLoadingSession(false);
+      return;
+    }
     const fetchSession = async () => {
       try {
         const response = await callSessionsAPI.detail(sessionId);

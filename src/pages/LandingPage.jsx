@@ -1,7 +1,10 @@
-import { Activity, Shield, Users, Clock, ArrowRight, Video } from 'lucide-react';
+import { Activity, Shield, Users, Clock, ArrowRight, Video, Sun, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../context/ThemeContext';
 
 export default function LandingPage() {
+  const { isDark, toggleTheme } = useTheme();
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>
       {/* Navbar */}
@@ -14,7 +17,25 @@ export default function LandingPage() {
             RNC<span style={{ color: 'var(--primary)' }}>Health</span>
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <button
+            onClick={toggleTheme}
+            className="btn btn-outline"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-strong)',
+              background: 'transparent',
+              color: 'var(--text-primary)',
+              cursor: 'pointer'
+            }}
+            aria-label="Toggle Theme"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
           <Link to="/login" className="btn btn-outline">Sign In</Link>
           <Link to="/register" className="btn btn-primary">Join Now</Link>
         </div>
