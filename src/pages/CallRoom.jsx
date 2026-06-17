@@ -1,20 +1,23 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWebRTCSocket } from '../context/WebRTCContext';
 import { useWebRTC } from '../hooks/useWebRTC';
 import { callSessionsAPI } from '../services/api';
-import { PhoneOff, Mic, MicOff, Video, VideoOff, PhoneCall, Volume2, Phone } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Video, VideoOff, PhoneCall } from 'lucide-react';
 import './CallRoom.css';
 
 const CallRoom = () => {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { isConnected, joinCallRoom } = useWebRTCSocket();
-  
+
   const [sessionDetails, setSessionDetails] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [callMode, setCallMode] = useState('video'); // 'video' | 'audio'
   const [timer, setTimer] = useState(0);
+
+  // WhatsApp-style: tap to swap local ↔ remote full-screen
+  const [isSwapped, setIsSwapped] = useState(false);
 
   const {
     localVideoRef,
@@ -27,26 +30,29 @@ const CallRoom = () => {
     callStatus,
     isPatient,
     remoteVideoEnabled,
-    remoteMicEnabled
   } = useWebRTC(sessionId);
 
-  const [micEnabled, setMicEnabled] = useState(true);
+  const [micEnabled, setMicEnabled]     = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [waitingTimeout, setWaitingTimeout] = useState(false);
-
   const initializedRef = useRef(false);
 
-  // Fetch session details on mount
+  // ─── Screen swap ──────────────────────────────────────────────────────────
+  const handleToggleSwap = useCallback(() => {
+    if (callStatus === 'connected') setIsSwapped(prev => !prev);
+  }, [callStatus]);
+
+  // ─── Fetch session details ────────────────────────────────────────────────
   useEffect(() => {
     const fetchSession = async () => {
       try {
         const response = await callSessionsAPI.detail(sessionId);
         setSessionDetails(response.data);
-        const type = response.data.call_type || 'video';
-        setCallMode(type);
-        setVideoEnabled(type === 'video');
+        // Always start in video mode
+        setCallMode('video');
+        setVideoEnabled(true);
       } catch (err) {
-        console.error('[CallRoom] Error fetching call details:', err);
+        console.error('[CallRoom] Failed to fetch session:', err);
       } finally {
         setLoadingSession(false);
       }
@@ -54,89 +60,77 @@ const CallRoom = () => {
     fetchSession();
   }, [sessionId]);
 
-  // Join call room and start local media once WS is connected and session details are loaded
+  // ─── Init: join room + start local stream when WS is ready ───────────────
   useEffect(() => {
-    if (loadingSession) return;
-    
-    if (!isConnected) {
-      console.warn('WebSocket not connected, waiting...');
-      return;
-    }
-
-    if (initializedRef.current) return;
+    if (loadingSession || !isConnected || initializedRef.current) return;
     initializedRef.current = true;
-
-    console.log('WS Connected, joining room and initiating local stream...');
+    console.log('[CallRoom] WS ready – joining room and starting stream...');
     try {
       joinCallRoom(sessionId);
-      // Always connect default video call only
-      const initialVideo = true;
-      startLocalStream(initialVideo);
+      startLocalStream(true); // always request video
     } catch (err) {
-      console.error('Failed to initialize call:', err);
-      alert('Failed to initialize call room. Please check your internet connection.');
+      console.error('[CallRoom] Initialization failed:', err);
+      alert('Failed to initialize the call room. Please check your internet connection.');
     }
-  }, [isConnected, sessionId, joinCallRoom, startLocalStream, loadingSession, sessionDetails]);
+  }, [isConnected, loadingSession, sessionId, joinCallRoom, startLocalStream]);
 
-  // Bind local stream to video element
+  // ─── Bind local stream to <video> element ────────────────────────────────
+  // Both video elements are ALWAYS mounted, so refs are always valid.
+  // Re-run whenever the stream arrives or call state changes.
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
-  }, [localStream, localVideoRef]);
+  }, [localStream, localVideoRef, callStatus]);
 
-  // Bind remote stream to video element
+  // ─── Bind remote stream to <video> element ───────────────────────────────
+  // Keeping the <video> always mounted means audio NEVER cuts out.
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
-  }, [remoteStream, remoteVideoRef]);
+  }, [remoteStream, remoteVideoRef, callStatus]);
 
-  // Active call timer
+  // ─── Call timer ───────────────────────────────────────────────────────────
   useEffect(() => {
-    let intervalId;
+    let id;
     if (callStatus === 'connected') {
-      intervalId = setInterval(() => {
-        setTimer(prev => prev + 1);
-      }, 1000);
+      id = setInterval(() => setTimer(t => t + 1), 1000);
     } else {
       setTimer(0);
     }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+    return () => clearInterval(id);
   }, [callStatus]);
 
-  // Waiting timeout timer (5 minutes)
+  // ─── Waiting timeout (5 min) ──────────────────────────────────────────────
   useEffect(() => {
-    if (callStatus === 'connected') {
-      setWaitingTimeout(false);
-      return;
-    }
-    const timer = setTimeout(() => {
-      setWaitingTimeout(true);
-    }, 5 * 60 * 1000);
-    return () => clearTimeout(timer);
+    if (callStatus === 'connected') { setWaitingTimeout(false); return; }
+    const t = setTimeout(() => setWaitingTimeout(true), 5 * 60 * 1000);
+    return () => clearTimeout(t);
   }, [callStatus]);
 
-  // Format call duration
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+  const formatTime = s => {
+    const m  = Math.floor(s / 60).toString().padStart(2, '0');
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${m}:${ss}`;
   };
 
-  // Switch between Video Call and Audio Call layouts dynamically
+  /**
+   * Switch between video and audio modes.
+   * Uses track.enabled toggle so the WebRTC peer connection is NOT renegotiated —
+   * the track stays in the connection (preserving signaling) but is muted/unmuted.
+   */
   const handleSwitchMode = () => {
     if (callMode === 'video') {
-      // Switch to Audio Call: turn off camera, notify remote
+      // → Audio mode: disable video track
       setCallMode('audio');
       if (videoEnabled) {
         toggleMedia('video');
         setVideoEnabled(false);
       }
     } else {
-      // Switch to Video Call: turn on camera, notify remote
+      // → Video mode: re-enable video track
       setCallMode('video');
       if (!videoEnabled) {
         toggleMedia('video');
@@ -145,66 +139,106 @@ const CallRoom = () => {
     }
   };
 
-  // Get partner's display name
   const getPartnerName = () => {
     if (!sessionDetails) return 'Healthcare Partner';
     if (isPatient) {
-      const name = sessionDetails.consultant_name || 'Consultant';
-      return name.startsWith('Dr.') ? name : `Dr. ${name}`;
-    } else {
-      return sessionDetails.patient_name || 'Patient';
+      const n = sessionDetails.consultant_name || 'Consultant';
+      return n.startsWith('Dr.') ? n : `Dr. ${n}`;
     }
+    return sessionDetails.patient_name || 'Patient';
   };
 
-  // Get partner's initials for the Avatar
   const getPartnerInitials = () => {
-    const name = getPartnerName();
-    const cleanName = name.replace(/^Dr\.\s+/i, '');
-    const parts = cleanName.split(' ');
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[1][0]).toUpperCase();
-    }
-    return cleanName.substring(0, 2).toUpperCase();
+    const name  = getPartnerName().replace(/^Dr\.\s+/i, '');
+    const parts = name.split(' ');
+    return parts.length >= 2
+      ? (parts[0][0] + parts[1][0]).toUpperCase()
+      : name.substring(0, 2).toUpperCase();
   };
 
+  // ─── Disconnected screen ─────────────────────────────────────────────────
   if (callStatus === 'disconnected') {
     return (
       <div className="call-room disconnected-screen">
         <div className="disconnected-card">
           <h2>Call Ended</h2>
           <p>The call session has been terminated.</p>
-          <button onClick={() => navigate(-1)} className="btn-dashboard">Return to Dashboard</button>
+          <button onClick={() => navigate(-1)} className="btn-dashboard">
+            Return to Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
-  const showRemoteVideo = callMode === 'video' && remoteVideoEnabled && callStatus === 'connected';
+  // ─── Display flags ────────────────────────────────────────────────────────
+  // Show remote video when: connected, video mode, and remote hasn't disabled camera
+  const showRemoteVideo =
+    callStatus === 'connected' && callMode === 'video' && remoteVideoEnabled;
+
+  // Show the audio/waiting UI over the main area when:
+  // • Not yet connected, OR
+  // • Connected but in audio mode (and not swapped to local full-screen)
+  // • Connected but remote video is off (and not swapped)
+  const showAudioUI =
+    callStatus !== 'connected' ||
+    (!isSwapped && (callMode === 'audio' || !remoteVideoEnabled));
 
   return (
     <div className="call-room">
-      {/* Sleek Blue-Gray Gradient Backdrop */}
-      <div className="call-room-backdrop"></div>
+      <div className="call-room-backdrop" />
 
-      {/* Main Calling Content Area */}
       <div className="video-container">
-        {showRemoteVideo ? (
-          // Full Screen Remote Video
-          <div className="remote-view">
-            <video 
-              ref={remoteVideoRef} 
-              autoPlay 
-              playsInline 
-              className="main-video"
-            />
-          </div>
-        ) : (
-          // Skype/WhatsApp styled Audio Avatar UI
-          <div className="audio-call-ui">
+
+        {/* ════════════════════════════════════════════════════════════════
+            REMOTE VIDEO CONTAINER
+            ─ Always mounted even in audio mode so the remote audio track
+              keeps playing. Visual display is controlled by opacity so
+              the <video> element stays in the DOM at all times.
+            ─ Main (full-screen) when !isSwapped; PiP when isSwapped.
+        ════════════════════════════════════════════════════════════════ */}
+        <div
+          className={isSwapped ? 'local-view' : 'remote-view'}
+          style={{
+            zIndex:  isSwapped ? 10 : 2,
+            cursor:  callStatus === 'connected' ? 'pointer' : 'default',
+          }}
+          onClick={handleToggleSwap}
+          title={callStatus === 'connected' ? 'Tap to switch views' : ''}
+        >
+          {/* ⚠️ Keep in DOM always — removing this kills remote audio */}
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className={isSwapped ? 'pip-video' : 'main-video'}
+            style={{
+              opacity:   showRemoteVideo ? 1 : 0,
+              transform: 'none',           // never mirror remote stream
+            }}
+          />
+
+          {/* Avatar overlay when remote video is hidden */}
+          {!showRemoteVideo && callStatus === 'connected' && !isSwapped && (
+            <div className="remote-no-video-overlay">
+              <div className="avatar-circle">
+                <span>{getPartnerInitials()}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ════════════════════════════════════════════════════════════════
+            AUDIO / WAITING UI
+            Shown on top of the main area whenever there's no video to
+            display (audio mode, remote camera off, or still connecting).
+        ════════════════════════════════════════════════════════════════ */}
+        {showAudioUI && (
+          <div className="audio-call-ui" style={{ zIndex: 4 }}>
             <div className="avatar-wrapper">
-              <div className="pulsing-halo ring-1"></div>
-              <div className="pulsing-halo ring-2"></div>
-              <div className="pulsing-halo ring-3"></div>
+              <div className="pulsing-halo ring-1" />
+              <div className="pulsing-halo ring-2" />
+              <div className="pulsing-halo ring-3" />
               <div className="avatar-circle">
                 <span>{getPartnerInitials()}</span>
               </div>
@@ -213,11 +247,11 @@ const CallRoom = () => {
             <div className="call-status-subtitle">
               {callStatus !== 'connected' ? (
                 <span className="connecting-text">
-                  {isPatient 
-                    ? "Connecting to consultant..." 
-                    : (waitingTimeout 
-                        ? "The other participant has not joined yet. Please stay on the line..." 
-                        : "Waiting for participant to join...")}
+                  {isPatient
+                    ? 'Connecting to consultant...'
+                    : waitingTimeout
+                      ? 'The other participant has not joined yet. Please stay on the line...'
+                      : 'Waiting for participant to join...'}
                 </span>
               ) : (
                 <span>Voice Call • Connected</span>
@@ -229,53 +263,92 @@ const CallRoom = () => {
           </div>
         )}
 
-        {/* Small floating local video Picture-in-Picture */}
+        {/* ════════════════════════════════════════════════════════════════
+            LOCAL VIDEO CONTAINER
+            ─ Always mounted when connected so the localVideoRef is always
+              valid and srcObject never needs to be re-bound from scratch.
+            ─ PiP (small) when !isSwapped; main (full-screen) when isSwapped.
+            ─ Camera opacity toggled rather than unmounting the element.
+        ════════════════════════════════════════════════════════════════ */}
         {callStatus === 'connected' && (
-          <div className={`local-view ${callMode === 'audio' || !videoEnabled ? 'local-view-audio-mode' : ''}`}>
-            {videoEnabled ? (
-              <video ref={localVideoRef} autoPlay playsInline muted className="pip-video" />
-            ) : (
-              <div className="local-avatar-pip">
+          <div
+            className={
+              isSwapped
+                ? 'remote-view'
+                : `local-view ${!videoEnabled ? 'local-view-audio-mode' : ''}`
+            }
+            style={{
+              zIndex: isSwapped ? 2 : 10,
+              cursor: 'pointer',
+            }}
+            onClick={handleToggleSwap}
+            title="Tap to switch views"
+          >
+            {/* Always mounted – opacity controls visibility */}
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={isSwapped ? 'main-video' : 'pip-video'}
+              style={{
+                opacity:   videoEnabled ? 1 : 0,
+                transform: 'scaleX(-1)',  // always mirror local camera
+              }}
+            />
+
+            {/* "Me" avatar when camera is off */}
+            {!videoEnabled && (
+              <div className="local-avatar-pip local-avatar-absolute">
                 <span>Me</span>
               </div>
             )}
           </div>
         )}
+
+        {/* ════════════════════════════════════════════════════════════════
+            CALL DURATION TIMER (video mode only — top-center overlay)
+        ════════════════════════════════════════════════════════════════ */}
+        {callStatus === 'connected' && callMode === 'video' && (
+          <div className="call-timer-overlay">{formatTime(timer)}</div>
+        )}
       </div>
 
-      {/* Floating control action buttons */}
+      {/* ════════════════════════════════════════════════════════════════
+          FLOATING CONTROL DOCK
+      ════════════════════════════════════════════════════════════════ */}
       <div className="call-controls-floating">
-        {/* Toggle Mic */}
-        <button 
+        {/* Mic toggle */}
+        <button
           className={`control-btn ${!micEnabled ? 'muted' : ''}`}
-          onClick={() => { toggleMedia('audio'); setMicEnabled(!micEnabled); }}
-          title={micEnabled ? "Mute Microphone" : "Unmute Microphone"}
+          onClick={() => { toggleMedia('audio'); setMicEnabled(m => !m); }}
+          title={micEnabled ? 'Mute Microphone' : 'Unmute Microphone'}
         >
           {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
         </button>
 
-        {/* Toggle Camera (Always available so user can turn on/off) */}
-        <button 
+        {/* Camera toggle */}
+        <button
           className={`control-btn ${!videoEnabled ? 'muted' : ''}`}
-          onClick={() => { toggleMedia('video'); setVideoEnabled(!videoEnabled); }}
-          title={videoEnabled ? "Turn Camera Off" : "Turn Camera On"}
+          onClick={() => { toggleMedia('video'); setVideoEnabled(v => !v); }}
+          title={videoEnabled ? 'Turn Camera Off' : 'Turn Camera On'}
         >
           {videoEnabled ? <Video size={22} /> : <VideoOff size={22} />}
         </button>
 
-        {/* Dynamic Mode Switcher (Upgrade/Downgrade between Video & Audio layout) */}
-        <button 
+        {/* Audio ↔ Video mode switcher */}
+        <button
           className={`control-btn ${callMode === 'audio' ? 'active-audio' : ''}`}
           onClick={handleSwitchMode}
-          title={callMode === 'video' ? "Switch to Audio Call" : "Switch to Video Call"}
+          title={callMode === 'video' ? 'Switch to Audio Call' : 'Switch to Video Call'}
         >
           {callMode === 'video' ? <PhoneCall size={22} /> : <Video size={22} />}
         </button>
 
-        {/* End Call */}
-        <button 
+        {/* End call */}
+        <button
           className="control-btn end-call"
-          onClick={() => { endCall(); }}
+          onClick={endCall}
           title="End Call"
         >
           <PhoneOff size={24} />
