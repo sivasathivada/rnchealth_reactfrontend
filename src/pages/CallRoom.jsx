@@ -69,8 +69,8 @@ const CallRoom = () => {
     console.log('WS Connected, joining room and initiating local stream...');
     try {
       joinCallRoom(sessionId);
-      // If the session call_type is 'audio', start local stream without video capture
-      const initialVideo = sessionDetails?.call_type === 'video';
+      // Always connect default video call only
+      const initialVideo = true;
       startLocalStream(initialVideo);
     } catch (err) {
       console.error('Failed to initialize call:', err);
@@ -254,27 +254,23 @@ const CallRoom = () => {
           {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
         </button>
 
-        {/* Toggle Camera (Only if session call_type started as video) */}
-        {sessionDetails?.call_type === 'video' && (
-          <button 
-            className={`control-btn ${!videoEnabled ? 'muted' : ''}`}
-            onClick={() => { toggleMedia('video'); setVideoEnabled(!videoEnabled); }}
-            title={videoEnabled ? "Turn Camera Off" : "Turn Camera On"}
-          >
-            {videoEnabled ? <Video size={22} /> : <VideoOff size={22} />}
-          </button>
-        )}
+        {/* Toggle Camera (Always available so user can turn on/off) */}
+        <button 
+          className={`control-btn ${!videoEnabled ? 'muted' : ''}`}
+          onClick={() => { toggleMedia('video'); setVideoEnabled(!videoEnabled); }}
+          title={videoEnabled ? "Turn Camera Off" : "Turn Camera On"}
+        >
+          {videoEnabled ? <Video size={22} /> : <VideoOff size={22} />}
+        </button>
 
         {/* Dynamic Mode Switcher (Upgrade/Downgrade between Video & Audio layout) */}
-        {sessionDetails?.call_type === 'video' && (
-          <button 
-            className={`control-btn ${callMode === 'audio' ? 'active-audio' : ''}`}
-            onClick={handleSwitchMode}
-            title={callMode === 'video' ? "Switch to Audio Call" : "Switch to Video Call"}
-          >
-            {callMode === 'video' ? <PhoneCall size={22} /> : <Video size={22} />}
-          </button>
-        )}
+        <button 
+          className={`control-btn ${callMode === 'audio' ? 'active-audio' : ''}`}
+          onClick={handleSwitchMode}
+          title={callMode === 'video' ? "Switch to Audio Call" : "Switch to Video Call"}
+        >
+          {callMode === 'video' ? <PhoneCall size={22} /> : <Video size={22} />}
+        </button>
 
         {/* End Call */}
         <button 
