@@ -367,3 +367,61 @@
   inset: 0;
   z-index: 2;
 }
+
+/* ─── Partner name shown beneath avatar when remote camera is off ────────── */
+.remote-no-video-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin: 0;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.3px;
+}
+
+/* ─── Floating name badge on live remote video (bottom-left) ─────────────── */
+.remote-name-badge {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  background: rgba(10, 16, 28, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 10px;
+  padding: 5px 14px;
+  z-index: 15;
+  pointer-events: none;
+  animation: fadeInUp 0.3s ease;
+}
+
+.remote-name-badge span {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ─── Local "Me" label on PiP corner ────────────────────────────────────── */
+.local-name-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.80);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 2px 8px;
+  border-radius: 6px;
+  z-index: 15;
+  pointer-events: none;
+  letter-spacing: 0.2px;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

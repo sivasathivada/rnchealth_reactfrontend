@@ -13,7 +13,6 @@ const CallRoom = () => {
 
   const [sessionDetails, setSessionDetails] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
-  const [callMode, setCallMode] = useState('video'); // 'video' | 'audio'
   const [timer, setTimer] = useState(0);
 
   // WhatsApp-style: tap to swap local ↔ remote full-screen
@@ -30,12 +29,14 @@ const CallRoom = () => {
     callStatus,
     isPatient,
     remoteVideoEnabled,
+    callMode,
+    videoEnabled,
+    micEnabled,
+    changeCallMode
   } = useWebRTC(sessionId);
 
   const remoteAudioRef = useRef(null);
 
-  const [micEnabled, setMicEnabled]     = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(true);
   const [waitingTimeout, setWaitingTimeout] = useState(false);
   const initializedRef = useRef(false);
 
@@ -99,14 +100,12 @@ const CallRoom = () => {
   };
 
   // ─── Fetch session details ────────────────────────────────────────────────
+  // NOTE: callMode and videoEnabled are managed by useWebRTC hook — do NOT set them here.
   useEffect(() => {
     const fetchSession = async () => {
       try {
         const response = await callSessionsAPI.detail(sessionId);
         setSessionDetails(response.data);
-        // Always start in video mode
-        setCallMode('video');
-        setVideoEnabled(true);
       } catch (err) {
         console.error('[CallRoom] Failed to fetch session:', err);
       } finally {
@@ -206,19 +205,9 @@ const CallRoom = () => {
    */
   const handleSwitchMode = () => {
     if (callMode === 'video') {
-      // → Audio mode: disable video track
-      setCallMode('audio');
-      if (videoEnabled) {
-        toggleMedia('video');
-        setVideoEnabled(false);
-      }
+      changeCallMode('audio');
     } else {
-      // → Video mode: re-enable video track
-      setCallMode('video');
-      if (!videoEnabled) {
-        toggleMedia('video');
-        setVideoEnabled(true);
-      }
+      changeCallMode('video');
     }
   };
 
@@ -307,12 +296,20 @@ const CallRoom = () => {
             }}
           />
 
-          {/* Avatar overlay when remote video is hidden */}
+          {/* Avatar overlay when remote video is hidden (camera off / audio mode) */}
           {!showRemoteVideo && callStatus === 'connected' && !isSwapped && (
             <div className="remote-no-video-overlay">
               <div className="avatar-circle">
                 <span>{getPartnerInitials()}</span>
               </div>
+              <p className="remote-no-video-name">{getPartnerName()}</p>
+            </div>
+          )}
+
+          {/* Name badge always visible on remote stream during video call */}
+          {showRemoteVideo && callStatus === 'connected' && !isSwapped && (
+            <div className="remote-name-badge">
+              <span>{getPartnerName()}</span>
             </div>
           )}
         </div>
@@ -384,6 +381,9 @@ const CallRoom = () => {
                 <span>Me</span>
               </div>
             )}
+
+            {/* Always-visible local name label */}
+            <div className="local-name-badge">Me</div>
           </div>
         )}
 
@@ -402,7 +402,7 @@ const CallRoom = () => {
         {/* Mic toggle */}
         <button
           className={`control-btn ${!micEnabled ? 'muted' : ''}`}
-          onClick={() => { toggleMedia('audio'); setMicEnabled(m => !m); }}
+          onClick={() => toggleMedia('audio')}
           title={micEnabled ? 'Mute Microphone' : 'Unmute Microphone'}
         >
           {micEnabled ? <Mic size={22} /> : <MicOff size={22} />}
@@ -411,7 +411,7 @@ const CallRoom = () => {
         {/* Camera toggle */}
         <button
           className={`control-btn ${!videoEnabled ? 'muted' : ''}`}
-          onClick={() => { toggleMedia('video'); setVideoEnabled(v => !v); }}
+          onClick={() => toggleMedia('video')}
           title={videoEnabled ? 'Turn Camera Off' : 'Turn Camera On'}
         >
           {videoEnabled ? <Video size={22} /> : <VideoOff size={22} />}

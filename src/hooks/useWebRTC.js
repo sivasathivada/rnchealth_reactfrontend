@@ -27,6 +27,27 @@ export const useWebRTC = (sessionId) => {
   const localStreamRef     = useRef(null);
   const dataChannelRef     = useRef(null);
 
+  const callModeRef = useRef('video');
+  const videoEnabledRef = useRef(true);
+  const micEnabledRef = useRef(true);
+
+  const [callMode, setCallModeState] = useState('video');
+  const [videoEnabled, setVideoEnabledState] = useState(true);
+  const [micEnabled, setMicEnabledState] = useState(true);
+
+  const setCallMode = (val) => {
+    callModeRef.current = val;
+    setCallModeState(val);
+  };
+  const setVideoEnabled = (val) => {
+    videoEnabledRef.current = val;
+    setVideoEnabledState(val);
+  };
+  const setMicEnabled = (val) => {
+    micEnabledRef.current = val;
+    setMicEnabledState(val);
+  };
+
   // ── Race-condition guards ─────────────────────────────────────────────────
   const queuedOffer          = useRef(null);
   const queuedCandidates     = useRef([]);
@@ -66,6 +87,24 @@ export const useWebRTC = (sessionId) => {
           setRemoteVideoEnabled(data.enabled);
         } else if (data.type === 'audio_toggle') {
           setRemoteMicEnabled(data.enabled);
+        } else if (data.type === 'call_mode_changed') {
+          setCallMode(data.mode);
+          const isVideo = data.mode === 'video';
+          setVideoEnabled(isVideo);
+          if (localStreamRef.current) {
+            localStreamRef.current.getVideoTracks().forEach(t => {
+              t.enabled = isVideo;
+            });
+          }
+          // Notify peer of our new video track status
+          try {
+            channel.send(JSON.stringify({
+              type: 'video_toggle',
+              enabled: isVideo
+            }));
+          } catch (e) {
+            console.warn('[WebRTC] Failed to send video toggle confirmation on call mode change:', e);
+          }
         }
       } catch (err) {
         console.error('[WebRTC] Error parsing control message:', err);
@@ -86,6 +125,11 @@ export const useWebRTC = (sessionId) => {
           dataChannelRef.current.send(JSON.stringify({
             type: 'audio_toggle',
             enabled: audioTrack ? audioTrack.enabled : true
+          }));
+          // Sync current call mode
+          dataChannelRef.current.send(JSON.stringify({
+            type: 'call_mode_changed',
+            mode: callModeRef.current
           }));
         } catch (err) {
           console.warn('[WebRTC] Error sending initial stream state:', err);
@@ -165,7 +209,16 @@ export const useWebRTC = (sessionId) => {
     try {
       let stream;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: isVideo, audio: true });
+        const constraints = {
+          video: isVideo ? {
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            frameRate: { ideal: 30, max: 60 },
+            facingMode: 'user'
+          } : false,
+          audio: true
+        };
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (mediaErr) {
         console.warn('[WebRTC] Failed to get video/audio, trying audio only', mediaErr);
         try {
@@ -232,14 +285,20 @@ export const useWebRTC = (sessionId) => {
 
   // ── Toggle camera or mic ──────────────────────────────────────────────────
   const toggleMedia = useCallback((type) => {
-    if (!localStream) return;
+    if (!localStreamRef.current) return;
     let newEnabled = true;
-    localStream.getTracks().forEach(track => {
+    localStreamRef.current.getTracks().forEach(track => {
       if (track.kind === type) {
         track.enabled = !track.enabled;
         newEnabled = track.enabled;
       }
     });
+
+    if (type === 'video') {
+      setVideoEnabled(newEnabled);
+    } else if (type === 'audio') {
+      setMicEnabled(newEnabled);
+    }
 
     // Notify remote peer via Data Channel
     if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
@@ -252,7 +311,37 @@ export const useWebRTC = (sessionId) => {
         console.warn('[WebRTC] Failed to send toggle state via data channel:', err);
       }
     }
-  }, [localStream]);
+  }, []);
+
+  // ── Switch Call Mode (Video/Audio) and Notify ─────────────────────────────
+  const changeCallMode = useCallback((newMode) => {
+    setCallMode(newMode);
+    
+    const isVideo = newMode === 'video';
+    setVideoEnabled(isVideo);
+    
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(t => {
+        t.enabled = isVideo;
+      });
+    }
+
+    // Notify remote peer via Data Channel
+    if (dataChannelRef.current && dataChannelRef.current.readyState === 'open') {
+      try {
+        dataChannelRef.current.send(JSON.stringify({
+          type: 'video_toggle',
+          enabled: isVideo
+        }));
+        dataChannelRef.current.send(JSON.stringify({
+          type: 'call_mode_changed',
+          mode: newMode
+        }));
+      } catch (err) {
+        console.warn('[WebRTC] Failed to send call mode change via data channel:', err);
+      }
+    }
+  }, []);
 
   // ── Register WebSocket signaling handlers ─────────────────────────────────
   useEffect(() => {
@@ -383,6 +472,167 @@ export const useWebRTC = (sessionId) => {
     };
   }, [sessionId, isPolite, sendCommand, registerHandler, flushQueuedCandidates]);
 
+  // ── WebRTC Statistics & Quality Reporting ─────────────────────────────────
+  const prevStatsRef = useRef(null);
+  useEffect(() => {
+    if (callStatus !== 'connected' || !peerConnection.current) {
+      prevStatsRef.current = null;
+      return;
+    }
+
+    console.log('[WebRTC] Starting stats collection and reporting interval');
+    
+    const intervalId = setInterval(async () => {
+      const pc = peerConnection.current;
+      if (!pc || pc.connectionState === 'closed') return;
+
+      try {
+        const stats = await pc.getStats();
+        let rtt = null;
+        let connectionType = 'unknown';
+        
+        let inboundVideo = null;
+        let outboundVideo = null;
+        
+        // Find relevant stats
+        let activeCandidatePair = null;
+        const candidateMap = new Map();
+
+        stats.forEach(report => {
+          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+            activeCandidatePair = report;
+          }
+          if (report.type === 'local-candidate' || report.type === 'remote-candidate') {
+            candidateMap.set(report.id, report);
+          }
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            inboundVideo = report;
+          }
+          if (report.type === 'outbound-rtp' && report.kind === 'video') {
+            outboundVideo = report;
+          }
+        });
+
+        // Determine connection type and latency (RTT)
+        if (activeCandidatePair) {
+          rtt = activeCandidatePair.currentRoundTripTime !== undefined
+            ? activeCandidatePair.currentRoundTripTime * 1000 // Convert to ms
+            : (activeCandidatePair.totalRoundTripTime * 1000) / activeCandidatePair.responsesReceived;
+          
+          const localCand = candidateMap.get(activeCandidatePair.localCandidateId);
+          const remoteCand = candidateMap.get(activeCandidatePair.remoteCandidateId);
+          if (localCand && remoteCand) {
+            connectionType = (localCand.candidateType === 'relay' || remoteCand.candidateType === 'relay')
+              ? 'relay'
+              : 'p2p';
+          }
+        }
+
+        const prev = prevStatsRef.current;
+        const nowTime = performance.now();
+        let downloadBitrate = 0;
+        let uploadBitrate = 0;
+        let packetLossRate = 0;
+        let resolution = 'unknown';
+        let fps = 0;
+
+        if (prev) {
+          const deltaSec = (nowTime - prev.time) / 1000;
+          if (deltaSec > 0) {
+            // Inbound calculations
+            if (inboundVideo && prev.inboundVideo) {
+              const deltaBytes = inboundVideo.bytesReceived - prev.inboundVideo.bytesReceived;
+              downloadBitrate = (deltaBytes * 8) / (deltaSec * 1000); // kbps
+              
+              const deltaPackets = inboundVideo.packetsReceived - prev.inboundVideo.packetsReceived;
+              const deltaLost = inboundVideo.packetsLost - prev.inboundVideo.packetsLost;
+              const totalPackets = deltaPackets + deltaLost;
+              packetLossRate = totalPackets > 0 ? deltaLost / totalPackets : 0;
+              
+              if (inboundVideo.frameWidth && inboundVideo.frameHeight) {
+                resolution = `${inboundVideo.frameWidth}x${inboundVideo.frameHeight}`;
+              }
+              
+              const deltaFrames = inboundVideo.framesDecoded - prev.inboundVideo.framesDecoded;
+              fps = deltaFrames / deltaSec;
+            }
+            
+            // Outbound calculations (if we don't have inbound resolution/fps, fall back to outbound)
+            if (outboundVideo && prev.outboundVideo) {
+              const deltaBytes = outboundVideo.bytesSent - prev.outboundVideo.bytesSent;
+              uploadBitrate = (deltaBytes * 8) / (deltaSec * 1000); // kbps
+              
+              if (resolution === 'unknown' && outboundVideo.frameWidth && outboundVideo.frameHeight) {
+                resolution = `${outboundVideo.frameWidth}x${outboundVideo.frameHeight}`;
+              }
+              
+              if (fps === 0 && outboundVideo.framesEncoded) {
+                const deltaFrames = outboundVideo.framesEncoded - prev.outboundVideo.framesEncoded;
+                fps = deltaFrames / deltaSec;
+              }
+            }
+          }
+        }
+
+        // Save current stats for next delta check
+        prevStatsRef.current = {
+          time: nowTime,
+          inboundVideo: inboundVideo ? {
+            bytesReceived: inboundVideo.bytesReceived,
+            packetsReceived: inboundVideo.packetsReceived,
+            packetsLost: inboundVideo.packetsLost,
+            framesDecoded: inboundVideo.framesDecoded
+          } : null,
+          outboundVideo: outboundVideo ? {
+            bytesSent: outboundVideo.bytesSent,
+            framesEncoded: outboundVideo.framesEncoded
+          } : null
+        };
+
+        // Classify quality
+        let quality = 'excellent';
+        if (rtt !== null) {
+          if (rtt > 400 || packetLossRate > 0.10) {
+            quality = 'poor';
+          } else if (rtt > 200 || packetLossRate > 0.05) {
+            quality = 'fair';
+          } else if (rtt > 100 || packetLossRate > 0.02) {
+            quality = 'good';
+          }
+        }
+
+        const totalBitrate = downloadBitrate + uploadBitrate;
+        const metrics = {
+          bandwidth: `${(totalBitrate / 1000).toFixed(2)} Mbps`,
+          bitrate: `${totalBitrate.toFixed(0)} kbps`,
+          bitrate_kbps: Math.round(totalBitrate),
+          latency_ms: rtt !== null ? Math.round(rtt) : 0,
+          packet_loss_pct: Math.round(packetLossRate * 100),
+          connection_type: connectionType,
+          resolution,
+          fps: Math.round(fps),
+          timestamp: new Date().toISOString()
+        };
+
+        console.log('[WebRTC] Reporting call quality stats:', quality, metrics);
+        
+        sendCommand('connection_quality', {
+          session_id: sessionIdRef.current,
+          quality,
+          stats: metrics
+        });
+
+      } catch (err) {
+        console.warn('[WebRTC] Failed to collect/report connection quality stats:', err);
+      }
+    }, 5000);
+
+    return () => {
+      console.log('[WebRTC] Clearing stats collection interval');
+      clearInterval(intervalId);
+    };
+  }, [callStatus, sendCommand]);
+
   // ── End call ─────────────────────────────────────────────────────────────
   const endCall = useCallback(() => {
     if (localStream) localStream.getTracks().forEach(t => t.stop());
@@ -393,6 +643,9 @@ export const useWebRTC = (sessionId) => {
     dataChannelRef.current       = null;
     setRemoteVideoEnabled(true);
     setRemoteMicEnabled(true);
+    setCallMode('video');
+    setVideoEnabled(true);
+    setMicEnabled(true);
     remoteDescriptionSet.current = false;
     queuedOffer.current          = null;
     queuedCandidates.current     = [];
@@ -417,6 +670,10 @@ export const useWebRTC = (sessionId) => {
     callStatus,
     isPatient: user?.role === 'patient',
     remoteVideoEnabled,
-    remoteMicEnabled
+    remoteMicEnabled,
+    callMode,
+    videoEnabled,
+    micEnabled,
+    changeCallMode
   };
 };
