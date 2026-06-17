@@ -297,12 +297,11 @@ const CallRoom = () => {
           />
 
           {/* Avatar overlay when remote video is hidden (camera off / audio mode) */}
-          {!showRemoteVideo && callStatus === 'connected' && !isSwapped && (
+          {!showRemoteVideo && callStatus === 'connected' && !showAudioUI && (
             <div className="remote-no-video-overlay">
               <div className="avatar-circle">
                 <span>{getPartnerInitials()}</span>
               </div>
-              <p className="remote-no-video-name">{getPartnerName()}</p>
             </div>
           )}
 

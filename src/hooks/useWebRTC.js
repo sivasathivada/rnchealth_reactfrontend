@@ -341,7 +341,17 @@ export const useWebRTC = (sessionId) => {
         console.warn('[WebRTC] Failed to send call mode change via data channel:', err);
       }
     }
-  }, []);
+
+    // Notify Django backend via WebSocket
+    try {
+      sendCommand('call_mode_changed', {
+        session_id: sessionIdRef.current,
+        mode: newMode
+      });
+    } catch (err) {
+      console.warn('[WebRTC] Failed to send call mode change via websocket:', err);
+    }
+  }, [sendCommand]);
 
   // ── Register WebSocket signaling handlers ─────────────────────────────────
   useEffect(() => {
