@@ -431,17 +431,6 @@ tbody td:first-child { color: var(--text-primary); font-weight: 500; }
 
 /* ═══════════════════════════  RESPONSIVE  ══════════════════════════ */
 @media (max-width: 768px) {
-  html, body {
-    overflow-x: hidden;
-    max-width: 100%;
-    position: relative;
-  }
-
-  .app-layout {
-    overflow-x: hidden;
-    max-width: 100vw;
-  }
-
   /* Sidebar is a drawer on mobile — remove its space from layout */
   .main-content {
     margin-left: 0;

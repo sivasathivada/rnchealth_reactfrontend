@@ -466,16 +466,4 @@
     width: 100%;
     justify-content: center;
   }
-
-  .pa-card-actions {
-    flex-direction: column;
-    width: 100%;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .pa-action-btn {
-    width: 100%;
-    justify-content: center;
-  }
 }
