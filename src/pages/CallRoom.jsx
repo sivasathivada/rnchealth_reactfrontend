@@ -32,15 +32,71 @@ const CallRoom = () => {
     remoteVideoEnabled,
   } = useWebRTC(sessionId);
 
+  const remoteAudioRef = useRef(null);
+
   const [micEnabled, setMicEnabled]     = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [waitingTimeout, setWaitingTimeout] = useState(false);
   const initializedRef = useRef(false);
 
+  // ─── Callback Refs for Stream Binding & Playback ─────────────────────────
+  // Using callback refs ensures that as soon as the DOM nodes mount,
+  // we bind the streams and trigger browser playback to avoid blank/frozen frames.
+  const setLocalVideo = useCallback((el) => {
+    localVideoRef.current = el;
+    if (el) {
+      if (localStream) {
+        if (el.srcObject !== localStream) {
+          el.srcObject = localStream;
+        }
+        el.play().catch(err => console.warn('[CallRoom] Local video play error:', err));
+      } else {
+        el.srcObject = null;
+      }
+    }
+  }, [localStream, localVideoRef]);
+
+  const setRemoteVideo = useCallback((el) => {
+    remoteVideoRef.current = el;
+    if (el) {
+      if (remoteStream) {
+        if (el.srcObject !== remoteStream) {
+          el.srcObject = remoteStream;
+        }
+        el.play().catch(err => console.warn('[CallRoom] Remote video play error:', err));
+      } else {
+        el.srcObject = null;
+      }
+    }
+  }, [remoteStream, remoteVideoRef]);
+
+  const setRemoteAudio = useCallback((el) => {
+    remoteAudioRef.current = el;
+    if (el) {
+      if (remoteStream) {
+        if (el.srcObject !== remoteStream) {
+          el.srcObject = remoteStream;
+        }
+        el.play().catch(err => console.warn('[CallRoom] Remote audio play error:', err));
+      } else {
+        el.srcObject = null;
+      }
+    }
+  }, [remoteStream]);
+
   // ─── Screen swap ──────────────────────────────────────────────────────────
-  const handleToggleSwap = useCallback(() => {
-    if (callStatus === 'connected') setIsSwapped(prev => !prev);
-  }, [callStatus]);
+  // Swapping is only triggered when tapping the active PiP window.
+  const handleLocalClick = () => {
+    if (!isSwapped && callStatus === 'connected') {
+      setIsSwapped(true);
+    }
+  };
+
+  const handleRemoteClick = () => {
+    if (isSwapped && callStatus === 'connected') {
+      setIsSwapped(false);
+    }
+  };
 
   // ─── Fetch session details ────────────────────────────────────────────────
   useEffect(() => {
@@ -74,22 +130,49 @@ const CallRoom = () => {
     }
   }, [isConnected, loadingSession, sessionId, joinCallRoom, startLocalStream]);
 
-  // ─── Bind local stream to <video> element ────────────────────────────────
-  // Both video elements are ALWAYS mounted, so refs are always valid.
-  // Re-run whenever the stream arrives or call state changes.
+  // ─── Backup Stream Binding Effects ───────────────────────────────────────
+  // Runs if stream objects or status updates asynchronously after initial mount.
   useEffect(() => {
     if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
+      if (localVideoRef.current.srcObject !== localStream) {
+        localVideoRef.current.srcObject = localStream;
+      }
     }
   }, [localStream, localVideoRef, callStatus]);
 
-  // ─── Bind remote stream to <video> element ───────────────────────────────
-  // Keeping the <video> always mounted means audio NEVER cuts out.
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+      if (remoteVideoRef.current.srcObject !== remoteStream) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+    }
+    if (remoteAudioRef.current && remoteStream) {
+      if (remoteAudioRef.current.srcObject !== remoteStream) {
+        remoteAudioRef.current.srcObject = remoteStream;
+      }
     }
   }, [remoteStream, remoteVideoRef, callStatus]);
+
+  // ─── Active Playback Resumers ────────────────────────────────────────────
+  // Forces browsers to resume playback after toggling track.enabled state
+  useEffect(() => {
+    if (videoEnabled && localVideoRef.current) {
+      localVideoRef.current.play().catch(err => {
+        console.warn('[CallRoom] Error resuming local video:', err);
+      });
+    }
+  }, [videoEnabled]);
+
+  const showRemoteVideo =
+    callStatus === 'connected' && callMode === 'video' && remoteVideoEnabled;
+
+  useEffect(() => {
+    if (showRemoteVideo && remoteVideoRef.current) {
+      remoteVideoRef.current.play().catch(err => {
+        console.warn('[CallRoom] Error resuming remote video:', err);
+      });
+    }
+  }, [showRemoteVideo]);
 
   // ─── Call timer ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -172,43 +255,49 @@ const CallRoom = () => {
   }
 
   // ─── Display flags ────────────────────────────────────────────────────────
-  // Show remote video when: connected, video mode, and remote hasn't disabled camera
-  const showRemoteVideo =
-    callStatus === 'connected' && callMode === 'video' && remoteVideoEnabled;
-
-  // Show the audio/waiting UI over the main area when:
-  // • Not yet connected, OR
-  // • Connected but in audio mode (and not swapped to local full-screen)
-  // • Connected but remote video is off (and not swapped)
   const showAudioUI =
     callStatus !== 'connected' ||
     (!isSwapped && (callMode === 'audio' || !remoteVideoEnabled));
+
+  // Determine classes for swap states
+  const remoteViewClassName = isSwapped
+    ? `local-view ${!remoteVideoEnabled ? 'local-view-audio-mode' : ''}`
+    : 'remote-view';
+
+  const localViewClassName = isSwapped
+    ? 'remote-view'
+    : `local-view ${callMode === 'audio' || !videoEnabled ? 'local-view-audio-mode' : ''}`;
 
   return (
     <div className="call-room">
       <div className="call-room-backdrop" />
 
+      {/* Hidden audio element dedicated to the remote stream to prevent cutouts */}
+      <audio
+        ref={setRemoteAudio}
+        autoPlay
+        playsInline
+        style={{ display: 'none' }}
+      />
+
       <div className="video-container">
 
         {/* ════════════════════════════════════════════════════════════════
             REMOTE VIDEO CONTAINER
-            ─ Always mounted even in audio mode so the remote audio track
-              keeps playing. Visual display is controlled by opacity so
-              the <video> element stays in the DOM at all times.
+            ─ Always mounted so remote audio track keeps playing.
             ─ Main (full-screen) when !isSwapped; PiP when isSwapped.
         ════════════════════════════════════════════════════════════════ */}
         <div
-          className={isSwapped ? 'local-view' : 'remote-view'}
+          className={remoteViewClassName}
           style={{
             zIndex:  isSwapped ? 10 : 2,
-            cursor:  callStatus === 'connected' ? 'pointer' : 'default',
+            cursor:  (callStatus === 'connected' && isSwapped) ? 'pointer' : 'default',
           }}
-          onClick={handleToggleSwap}
-          title={callStatus === 'connected' ? 'Tap to switch views' : ''}
+          onClick={handleRemoteClick}
+          title={isSwapped ? 'Tap to switch views' : ''}
         >
-          {/* ⚠️ Keep in DOM always — removing this kills remote audio */}
           <video
-            ref={remoteVideoRef}
+            ref={setRemoteVideo}
             autoPlay
             playsInline
             className={isSwapped ? 'pip-video' : 'main-video'}
@@ -230,8 +319,7 @@ const CallRoom = () => {
 
         {/* ════════════════════════════════════════════════════════════════
             AUDIO / WAITING UI
-            Shown on top of the main area whenever there's no video to
-            display (audio mode, remote camera off, or still connecting).
+            Shown on top of the main area when there is no video to display.
         ════════════════════════════════════════════════════════════════ */}
         {showAudioUI && (
           <div className="audio-call-ui" style={{ zIndex: 4 }}>
@@ -265,28 +353,21 @@ const CallRoom = () => {
 
         {/* ════════════════════════════════════════════════════════════════
             LOCAL VIDEO CONTAINER
-            ─ Always mounted when connected so the localVideoRef is always
-              valid and srcObject never needs to be re-bound from scratch.
+            ─ Always mounted when connected so local stream stays bound.
             ─ PiP (small) when !isSwapped; main (full-screen) when isSwapped.
-            ─ Camera opacity toggled rather than unmounting the element.
         ════════════════════════════════════════════════════════════════ */}
         {callStatus === 'connected' && (
           <div
-            className={
-              isSwapped
-                ? 'remote-view'
-                : `local-view ${!videoEnabled ? 'local-view-audio-mode' : ''}`
-            }
+            className={localViewClassName}
             style={{
               zIndex: isSwapped ? 2 : 10,
-              cursor: 'pointer',
+              cursor: (callStatus === 'connected' && !isSwapped) ? 'pointer' : 'default',
             }}
-            onClick={handleToggleSwap}
-            title="Tap to switch views"
+            onClick={handleLocalClick}
+            title={!isSwapped ? 'Tap to switch views' : ''}
           >
-            {/* Always mounted – opacity controls visibility */}
             <video
-              ref={localVideoRef}
+              ref={setLocalVideo}
               autoPlay
               playsInline
               muted
