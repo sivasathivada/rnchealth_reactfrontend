@@ -163,12 +163,15 @@
   z-index: 999;
 }
 .modal-content {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
   width: 90%;
-  max-width: 500px;
-  padding: 24px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  max-width: 520px;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  color: var(--text-primary);
+  animation: fadeIn 0.25s ease;
 }
 .modal-header {
   display: flex;
@@ -178,17 +181,131 @@
   padding-bottom: 15px;
   border-bottom: 1px solid var(--border);
 }
+.modal-header h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
 .modal-close {
   background: transparent;
   border: none;
   cursor: pointer;
   color: var(--text-muted);
+  padding: 4px;
+  border-radius: 50%;
+  transition: var(--transition);
 }
-.modal-close:hover { color: #ef4444; }
+.modal-close:hover { color: var(--danger); background: rgba(239,68,68,0.1); }
 .form-grid {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 16px;
+}
+.form-grid label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+.form-grid input[type="date"],
+.form-grid input[type="time"],
+.form-grid select,
+.form-grid textarea {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  width: 100%;
+  outline: none;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.form-grid input:focus,
+.form-grid select:focus,
+.form-grid textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.form-grid select option { background: var(--bg-card); color: var(--text-primary); }
+
+/* ── Review Modal Star Rating ── */
+.review-doctor-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 4px;
+}
+.review-doctor-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--primary);
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.review-doctor-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+.review-doctor-speciality {
+  font-size: 0.8rem;
+  color: var(--primary);
+  font-weight: 500;
+  margin-top: 2px;
+}
+.star-rating-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+}
+.star-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  line-height: 1;
+}
+.star-btn:hover { transform: scale(1.25); }
+.star-label {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-left: 4px;
 }
 .full-width { width: 100%; }
 .mt-4 { margin-top: 20px; }
+
+.btn-link {
+  color: var(--primary);
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-link:hover {
+  color: var(--primary-dark);
+  text-decoration: none;
+}

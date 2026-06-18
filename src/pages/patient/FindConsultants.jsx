@@ -27,9 +27,10 @@ export default function FindConsultants() {
   });
 
   const [reviewData, setReviewData] = useState({
-     rating: 5,
+     rating: 0,
      review_text: ''
   });
+  const [hoverRating, setHoverRating] = useState(0);
 
   const fetchConsultants = async () => {
     setLoading(true);
@@ -149,17 +150,24 @@ export default function FindConsultants() {
 
   const submitReview = async (e) => {
      e.preventDefault();
+     if (!reviewData.rating || reviewData.rating < 1) {
+       alert('Please select a star rating before submitting.');
+       return;
+     }
      try {
         await consultantsAPI.addReview(reviewModal.consultant.id, {
            rating: parseInt(reviewData.rating),
            review_text: reviewData.review_text
         });
-        alert('Review submitted successfully!');
+        alert('Review submitted successfully! Thank you for your feedback.');
         setReviewModal({ show: false, consultant: null });
-        setReviewData({ rating: 5, review_text: '' });
+        setReviewData({ rating: 0, review_text: '' });
+        setHoverRating(0);
+        fetchConsultants(); // refresh ratings
      } catch (err) {
         console.error(err);
-        alert('Failed to submit review.');
+        const msg = err.response?.data?.error || err.response?.data?.detail || 'Failed to submit review.';
+        alert(msg);
      }
   }
 
@@ -234,7 +242,9 @@ export default function FindConsultants() {
                     {c.clinic_city && <div className="meta-item"><MapPin size={14} />{c.clinic_city}</div>}
                   </div>
                   <div className="consultant-stats">
-                    <button className="btn-link" onClick={() => setReviewModal({show: true, consultant: c})}>Leave a Review</button>
+                    <button className="btn-link" onClick={() => setReviewModal({show: true, consultant: c})}>
+                      <Star size={14} fill="currentColor" /> Write a Review
+                    </button>
                   </div>
                 </div>
 
@@ -318,34 +328,83 @@ export default function FindConsultants() {
       )}
 
       {/* Review Modal */}
-      {reviewModal.show && (
-         <div className="modal-overlay">
+      {reviewModal.show && (() => {
+        const c = reviewModal.consultant;
+        const activeRating = hoverRating || reviewData.rating;
+        const ratingLabels = ['', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+        return (
+          <div className="modal-overlay" onClick={(e) => { if (e.target.classList.contains('modal-overlay')) { setReviewModal({show:false,consultant:null}); setHoverRating(0); } }}>
             <div className="modal-content review-modal">
-               <div className="modal-header">
-                  <h2>Rate Consultant</h2>
-                  <button className="modal-close" onClick={() => setReviewModal({show: false, consultant: null})}><X size={20}/></button>
-               </div>
-               <form onSubmit={submitReview} className="modal-body form-grid">
-                  <p>Leaving feedback for: <strong>Dr. {reviewModal.consultant.user?.full_name}</strong></p>
-                  <div className="form-group">
-                     <label>Rating (1-5)</label>
-                     <select value={reviewData.rating} onChange={e=>setReviewData({...reviewData, rating: e.target.value})}>
-                        <option value="1">1 Star</option>
-                        <option value="2">2 Stars</option>
-                        <option value="3">3 Stars</option>
-                        <option value="4">4 Stars</option>
-                        <option value="5">5 Stars</option>
-                     </select>
+              <div className="modal-header">
+                <h2>Write a Review</h2>
+                <button className="modal-close" onClick={() => { setReviewModal({show:false,consultant:null}); setHoverRating(0); }}><X size={20}/></button>
+              </div>
+
+              {/* Doctor Info Card */}
+              <div className="review-doctor-info">
+                <div className="review-doctor-avatar">
+                  {c.avatar_url
+                    ? <img src={c.avatar_url} alt={c.user?.full_name} style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} />
+                    : (c.user?.first_name?.[0] || 'D')}
+                </div>
+                <div>
+                  <div className="review-doctor-name">Dr. {c.user?.full_name}</div>
+                  <div className="review-doctor-speciality">{c.speciality?.name || 'General Practice'}</div>
+                </div>
+              </div>
+
+              <form onSubmit={submitReview} className="modal-body form-grid">
+                {/* Interactive Star Rating */}
+                <div>
+                  <label>Your Rating</label>
+                  <div className="star-rating-row">
+                    {[1,2,3,4,5].map(star => (
+                      <button
+                        key={star}
+                        type="button"
+                        className="star-btn"
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => setReviewData(d => ({...d, rating: star}))}
+                        aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                      >
+                        <Star
+                          size={30}
+                          fill={star <= activeRating ? '#f59e0b' : 'none'}
+                          color={star <= activeRating ? '#f59e0b' : '#64748b'}
+                          strokeWidth={1.5}
+                        />
+                      </button>
+                    ))}
+                    {activeRating > 0 && (
+                      <span className="star-label">{ratingLabels[activeRating]}</span>
+                    )}
                   </div>
-                  <div className="form-group full-width">
-                     <label>Review Description</label>
-                     <textarea required rows={3} value={reviewData.review_text} onChange={e=>setReviewData({...reviewData, review_text: e.target.value})} placeholder="Share your experience..."></textarea>
-                  </div>
-                  <button type="submit" className="btn btn-primary full-width mt-4">Submit Review</button>
-               </form>
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Your Experience</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={reviewData.review_text}
+                    onChange={e => setReviewData({...reviewData, review_text: e.target.value})}
+                    placeholder="Share your experience with this doctor — how was the consultation, diagnosis, and treatment?"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="btn btn-primary full-width mt-4"
+                  disabled={!reviewData.rating || !reviewData.review_text.trim()}
+                >
+                  <Star size={15} fill="currentColor" style={{marginRight:6}} />
+                  Submit Review
+                </button>
+              </form>
             </div>
-         </div>
-      )}
+          </div>
+        );
+      })()}
 
       {/* Payment Processing Flow */}
       {paymentModal.show && (
