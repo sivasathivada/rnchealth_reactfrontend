@@ -173,10 +173,16 @@ export const callSessionsAPI = {
 
 // ── PRESCRIPTIONS ─────────────────────────────────────
 export const prescriptionsAPI = {
+  // Consultant: list & create their issued prescriptions
   list: (params) => api.get('/api/v1/book-appointment/prescriptions/', { params }),
   detail: (id) => api.get(`/api/v1/book-appointment/prescriptions/${id}/`),
   create: (data) => api.post('/api/v1/book-appointment/prescriptions/', data),
   update: (id, data) => api.patch(`/api/v1/book-appointment/prescriptions/${id}/`, data),
+  // Patient: list all their received prescriptions
+  myList: (params) => api.get('/api/v1/book-appointment/prescriptions/my/', { params }),
+  // Patient: get prescription for a specific completed call session
+  bySession: (sessionId) =>
+    api.get('/api/v1/book-appointment/prescriptions/my/', { params: { session_id: sessionId } }),
 };
 
 // ── ADMIN ─────────────────────────────────────────────

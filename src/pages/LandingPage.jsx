@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Shield, Users, Clock, ArrowRight, Video, Sun, Moon, Star } from 'lucide-react';
+import { Activity, Shield, Users, Clock, ArrowRight, Video, Sun, Moon, Star, CalendarPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { consultantsAPI } from '../services/api';
@@ -204,7 +204,31 @@ export default function LandingPage() {
           font-style: italic;
           color: var(--text-secondary);
           line-height: 1.4;
-          margin-bottom: 8px;
+          margin-bottom: 16px;
+        }
+        .landing-book-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          width: 100%;
+          padding: 10px 16px;
+          border-radius: var(--radius-md);
+          background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+          color: #fff;
+          font-weight: 700;
+          font-size: 0.875rem;
+          text-decoration: none;
+          border: none;
+          cursor: pointer;
+          transition: opacity 0.2s, transform 0.2s;
+          box-shadow: 0 4px 14px var(--primary-glow);
+          letter-spacing: 0.02em;
+        }
+        .landing-book-btn:hover {
+          opacity: 0.92;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px var(--primary-glow);
         }
         .landing-carousel-nav-btn {
           position: absolute;
@@ -385,6 +409,10 @@ export default function LandingPage() {
                           "{doctors[currentIndex].bio.slice(0, 100)}{doctors[currentIndex].bio.length > 100 ? '...' : ''}"
                         </p>
                       )}
+                      <Link to="/login" className="landing-book-btn">
+                        <CalendarPlus size={16} />
+                        Book Appointment
+                      </Link>
                     </div>
                   </div>
 
